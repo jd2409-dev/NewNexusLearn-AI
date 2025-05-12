@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarHeader,
@@ -15,9 +15,7 @@ import {
   SidebarMenuSubButton,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
 import { NexusLearnLogo } from "@/components/icons/nexuslearn-logo";
 import {
   Home,
@@ -31,8 +29,11 @@ import {
   LifeBuoy,
   ChevronDown,
   ChevronUp,
+  LogOut,
+  User,
 } from "lucide-react";
 import React from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -46,7 +47,9 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { open, setOpenMobile } = useSidebar();
+  const { user, signOut, loading: authLoading } = useAuth();
   const [isAccountOpen, setIsAccountOpen] = React.useState(false);
 
   const closeMobileSidebar = () => {
@@ -54,6 +57,30 @@ export function AppSidebar() {
       setOpenMobile(false);
     }
   };
+
+  const handleLogout = async () => {
+    closeMobileSidebar();
+    await signOut();
+  };
+  
+  const getInitials = (email?: string | null) => {
+    if (!email) return "NL";
+    const namePart = email.split("@")[0];
+     if (namePart.includes('.')) {
+      return namePart.split('.').map(p => p[0]).slice(0,2).join("").toUpperCase();
+    }
+    if (namePart.includes('_')) {
+      return namePart.split('_').map(p => p[0]).slice(0,2).join("").toUpperCase();
+    }
+     if (namePart.includes('-')) {
+      return namePart.split('-').map(p => p[0]).slice(0,2).join("").toUpperCase();
+    }
+    return namePart.substring(0, 2).toUpperCase();
+  };
+
+  if (!user) { // Should not happen if AppLayout protection works, but as a safeguard
+    return null;
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -82,38 +109,44 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-2 border-t border-sidebar-border">
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => setIsAccountOpen(!isAccountOpen)} className="justify-between">
-                    <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                            <AvatarImage src="https://picsum.photos/100/100?random=user" alt="User avatar" data-ai-hint="user avatar"/>
-                            <AvatarFallback>NL</AvatarFallback>
-                        </Avatar>
-                        <span className="group-data-[collapsible=icon]:hidden">User Account</span>
-                    </div>
-                    {isAccountOpen ? <ChevronUp className="h-4 w-4 group-data-[collapsible=icon]:hidden" /> : <ChevronDown className="h-4 w-4 group-data-[collapsible=icon]:hidden" />}
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            {isAccountOpen && (
-                 <SidebarMenuSub>
-                    <SidebarMenuSubItem>
-                        <Link href="/settings" passHref legacyBehavior>
-                            <SidebarMenuSubButton isActive={pathname === "/settings"} onClick={closeMobileSidebar}>
-                                <Settings className="h-4 w-4" /> Settings
-                            </SidebarMenuSubButton>
-                        </Link>
-                    </SidebarMenuSubItem>
-                     <SidebarMenuSubItem>
-                        <Link href="/support" passHref legacyBehavior>
-                            <SidebarMenuSubButton isActive={pathname === "/support"} onClick={closeMobileSidebar}>
-                                <LifeBuoy className="h-4 w-4" /> Support
-                            </SidebarMenuSubButton>
-                        </Link>
-                    </SidebarMenuSubItem>
-                 </SidebarMenuSub>
-            )}
-        </SidebarMenu>
+          <SidebarMenu>
+              <SidebarMenuItem>
+                  <SidebarMenuButton onClick={() => setIsAccountOpen(!isAccountOpen)} className="justify-between">
+                      <div className="flex items-center gap-2">
+                          <Avatar className="h-7 w-7">
+                              <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} alt="User avatar" data-ai-hint="user avatar"/>
+                              <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+                          </Avatar>
+                          <span className="group-data-[collapsible=icon]:hidden truncate max-w-[120px]">{user.displayName || user.email?.split('@')[0] || "Account"}</span>
+                      </div>
+                      {isAccountOpen ? <ChevronUp className="h-4 w-4 group-data-[collapsible=icon]:hidden" /> : <ChevronDown className="h-4 w-4 group-data-[collapsible=icon]:hidden" />}
+                  </SidebarMenuButton>
+              </SidebarMenuItem>
+              {isAccountOpen && (
+                   <SidebarMenuSub>
+                      {/* <SidebarMenuSubItem>
+                          <SidebarMenuSubButton onClick={() => {router.push('/profile'); closeMobileSidebar();}} isActive={pathname === "/profile"}>
+                              <User className="h-4 w-4" /> Profile
+                          </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                          <SidebarMenuSubButton onClick={() => {router.push('/settings'); closeMobileSidebar();}} isActive={pathname === "/settings"}>
+                              <Settings className="h-4 w-4" /> Settings
+                          </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                       <SidebarMenuSubItem>
+                          <SidebarMenuSubButton onClick={() => {router.push('/support'); closeMobileSidebar();}} isActive={pathname === "/support"}>
+                              <LifeBuoy className="h-4 w-4" /> Support
+                          </SidebarMenuSubButton>
+                      </SidebarMenuSubItem> */}
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton onClick={handleLogout} disabled={authLoading}>
+                            <LogOut className="h-4 w-4" /> Log Out
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                   </SidebarMenuSub>
+              )}
+          </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
