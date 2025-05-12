@@ -4,9 +4,9 @@ export function NexusLearnLogo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 200 50"
-      width="200"
-      height="50"
+      viewBox="0 0 230 50" // Increased width from 200 to 230
+      width="230" // Default width, adjusted to new aspect ratio
+      height="50" // Default height
       role="img"
       aria-labelledby="nexuslearnLogoTitle"
       {...props}
@@ -28,7 +28,7 @@ export function NexusLearnLogo(props: SVGProps<SVGSVGElement>) {
       
       {/* Text part */}
       <text 
-        x="55" 
+        x="50" // Adjusted x from 55 to 50
         y="32" 
         fontFamily="var(--font-geist-sans), Arial, sans-serif" 
         fontSize="24" 
@@ -36,7 +36,13 @@ export function NexusLearnLogo(props: SVGProps<SVGSVGElement>) {
         fill="hsl(var(--foreground))"
       >
         NexusLearn
-        <tspan fill="url(#logoGradient)" dx="6" fontSize="24">AI</tspan>
+        <tspan 
+          fill="url(#logoGradient)" 
+          dx="6" 
+          fontSize="24"
+        >
+          AI
+        </tspan>
       </text>
     </svg>
   );
