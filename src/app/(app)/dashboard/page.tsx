@@ -1,9 +1,10 @@
+tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain } from "lucide-react";
+import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -16,23 +17,19 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import type { ChartConfig } from "@/components/ui/chart"
 
-const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
+const studyActivityData = [
+  { month: "January", hours: 266 },
+  { month: "February", hours: 505 },
+  { month: "March", hours: 357 },
+  { month: "April", hours: 263 },
+  { month: "May", hours: 339 },
+  { month: "June", hours: 354 },
 ]
 
-const chartConfig = {
-  desktop: {
-    label: "Desktop",
+const studyActivityConfig = {
+  hours: {
+    label: "Total Study Hours",
     color: "hsl(var(--primary))",
-  },
-  mobile: {
-    label: "Mobile",
-    color: "hsl(var(--accent))",
   },
 } satisfies ChartConfig
 
@@ -105,13 +102,13 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-semibold mb-4">Your Progress Overview</h2>
         <Card>
           <CardHeader>
-            <CardTitle>Study Activity (Last 6 Months)</CardTitle>
-            <CardDescription>Hours spent on desktop vs. mobile (mock data)</CardDescription>
+            <CardTitle className="flex items-center"><TrendingUp className="mr-2 h-5 w-5 text-primary" />Study Activity (Last 6 Months)</CardTitle>
+            <CardDescription>Total study hours per month (mock data)</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <ChartContainer config={studyActivityConfig} className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart accessibilityLayer data={chartData}>
+                <BarChart accessibilityLayer data={studyActivityData}>
                   <CartesianGrid vertical={false} />
                   <XAxis
                     dataKey="month"
@@ -123,8 +120,7 @@ export default function DashboardPage() {
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
-                  <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
+                  <Bar dataKey="hours" fill="var(--color-hours)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
@@ -202,3 +198,4 @@ function DashboardCard({ title, description, icon, href, actionText }: Dashboard
     </Card>
   );
 }
+
