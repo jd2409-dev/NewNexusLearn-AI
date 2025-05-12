@@ -36,7 +36,7 @@ export function NexusLearnLogo(props: SVGProps<SVGSVGElement>) {
         fill="hsl(var(--foreground))"
       >
         NexusLearn
-        <tspan fill="url(#logoGradient)" dx="5" fontSize="18" dy="-2">AI</tspan>
+        <tspan fill="url(#logoGradient)" dx="6" fontSize="24">AI</tspan>
       </text>
     </svg>
   );
