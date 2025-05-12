@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent, useEffect } from "react";
@@ -15,42 +16,50 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSigningUp, setIsSigningUp] = useState(false);
-  const { signIn, signUp, loading: authLoading, error: authError, clearError, user, isFirebaseConfigured } = useAuth();
+  const { signIn, signUp, loading: authLoading, error: authError, clearError, user, userProfile, isFirebaseConfigured } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (user && !authLoading && isFirebaseConfigured) {
-      router.push("/dashboard");
+    if (!authLoading && user && isFirebaseConfigured) {
+      if (userProfile && userProfile.plan) {
+        router.push("/dashboard");
+      } else if (userProfile && userProfile.plan === null) {
+        // User profile exists but plan not selected
+        router.push("/select-plan");
+      }
+      // If userProfile is null, AuthProvider is still fetching it.
+      // The (app)/layout.tsx will handle redirection once userProfile is loaded.
     }
-  }, [user, authLoading, router, isFirebaseConfigured]);
+  }, [user, userProfile, authLoading, router, isFirebaseConfigured]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isFirebaseConfigured) {
-        // Error message is already set by AuthProvider and displayed in the Alert.
         return;
     }
     clearError();
-    let result;
+    let resultUser;
     if (isSigningUp) {
-      result = await signUp(email, password);
+      resultUser = await signUp(email, password);
+      if (resultUser) {
+        router.push("/select-plan"); // New users go to select plan
+      }
     } else {
-      result = await signIn(email, password);
-    }
-    if (result) {
-      // AuthProvider or useEffect above will handle redirect
+      resultUser = await signIn(email, password);
+      // useEffect will handle redirection based on userProfile.plan
     }
   };
 
-  if (user && !authLoading && isFirebaseConfigured) {
-    return (
+  if (authLoading && !user) { // Show loading only if no user yet, to avoid flash
+     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-background to-secondary/30">
-        <NexusLearnLogo className="h-20 w-auto mx-auto text-primary mb-6" />
+        <NexusLearnLogo className="h-20 w-auto text-primary mb-6" />
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Redirecting...</p>
+        <p className="mt-4 text-muted-foreground">Loading...</p>
       </div>
     );
   }
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-secondary/30 p-4">
@@ -71,6 +80,13 @@ export default function LoginPage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>{!isFirebaseConfigured ? "Configuration Error" : "Authentication Error"}</AlertTitle>
                 <AlertDescription>{authError}</AlertDescription>
+              </Alert>
+            )}
+             {!isFirebaseConfigured && !authError && ( // Show specific config error if not already shown by authError
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Configuration Error</AlertTitle>
+                <AlertDescription>Firebase is not configured. Please check environment variables.</AlertDescription>
               </Alert>
             )}
             <div className="space-y-2">

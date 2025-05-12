@@ -1,8 +1,9 @@
+
 "use client"; 
 
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
@@ -15,25 +16,45 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, isFirebaseConfigured, error: authError } = useAuth();
+  const { user, userProfile, loading, isFirebaseConfigured, error: authError } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading) {
-      if (isFirebaseConfigured) {
-        if (!user) {
-          router.push('/login');
-        }
+      if (!isFirebaseConfigured) {
+        // Error will be shown by the !isFirebaseConfigured block
+        return;
       }
-      // If Firebase is not configured, the !isFirebaseConfigured block below
-      // will render an error message. No automatic redirect from here in that case.
-    }
-  }, [user, loading, router, isFirebaseConfigured]);
 
-  if (loading) {
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      // User is logged in, check if profile and plan are set
+      if (user && userProfile === null) {
+        // Profile is still loading or failed to load, wait for AuthProvider to update.
+        // The loading screen below will cover this.
+        return;
+      }
+      
+      if (user && userProfile && userProfile.plan === null) {
+        // User is logged in, profile loaded, but plan not selected
+        if (pathname !== '/select-plan') {
+          router.push('/select-plan');
+        }
+      } else if (user && userProfile && userProfile.plan && pathname === '/select-plan') {
+        // User has a plan but somehow landed on select-plan, redirect to dashboard
+        router.push('/dashboard');
+      }
+    }
+  }, [user, userProfile, loading, router, isFirebaseConfigured, pathname]);
+
+  if (loading || (user && userProfile === null && isFirebaseConfigured)) { // Keep loading if user exists but profile is not yet loaded
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-background">
-        <NexusLearnLogo className="h-20 w-auto mx-auto text-primary mb-6" />
+        <NexusLearnLogo className="h-20 w-auto text-primary mb-6" />
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">Loading NexusLearn AI...</p>
       </div>
@@ -43,7 +64,7 @@ export default function AppLayout({
   if (!isFirebaseConfigured) {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-background p-6 text-center">
-        <NexusLearnLogo className="h-20 w-auto mx-auto text-primary mb-6" />
+        <NexusLearnLogo className="h-20 w-auto text-primary mb-6" />
         <Alert variant="destructive" className="max-w-lg w-full">
           <AlertCircle className="h-5 w-5" />
           <AlertTitle className="text-xl font-semibold">Application Configuration Error</AlertTitle>
@@ -52,10 +73,10 @@ export default function AppLayout({
               {authError || "NexusLearn AI cannot start due to a Firebase configuration issue."}
             </p>
             <p className="mb-3">
-              Please ensure that Firebase API keys (e.g., <code>NEXT_PUBLIC_FIREBASE_API_KEY</code>, <code>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</code>, etc.) are correctly set up in your environment configuration file (<code>.env</code> or <code>.env.local</code>).
+              Please ensure that Firebase API keys (e.g., <code>NEXT_PUBLIC_FIREBASE_API_KEY</code>, etc.) are correctly set up in your environment configuration file (<code>.env.local</code>).
             </p>
             <p>
-              If you are an administrator, please verify the Firebase project setup and environment variables. If the issue persists, check server logs for more details.
+              If you are an administrator, please verify the Firebase project setup and environment variables.
             </p>
           </AlertDescription>
         </Alert>
@@ -63,20 +84,30 @@ export default function AppLayout({
     );
   }
 
-  // At this point, Firebase IS configured. Now check for user.
   if (!user) {
     // This state should ideally be brief as useEffect redirects to /login.
-    // This also handles cases where a non-authenticated user tries to access a protected route directly.
     return (
        <div className="flex h-screen w-screen flex-col items-center justify-center bg-background">
-        <NexusLearnLogo className="h-20 w-auto mx-auto text-primary mb-6" />
+        <NexusLearnLogo className="h-20 w-auto text-primary mb-6" />
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">Redirecting to login...</p>
       </div>
     );
   }
+  
+  // If user is logged in but plan is not selected, and we are not on select-plan page,
+  // this indicates redirection is in progress by useEffect. Show loader.
+  if (userProfile && userProfile.plan === null && pathname !== '/select-plan') {
+     return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-background">
+        <NexusLearnLogo className="h-20 w-auto text-primary mb-6" />
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Finalizing setup...</p>
+      </div>
+    );
+  }
 
-  // Firebase is configured and user exists
+
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
