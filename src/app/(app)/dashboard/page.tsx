@@ -1,37 +1,11 @@
-tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp } from "lucide-react";
+import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp, Activity } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-} from "@/components/ui/chart"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
-import type { ChartConfig } from "@/components/ui/chart"
-
-const studyActivityData = [
-  { month: "January", hours: 266 },
-  { month: "February", hours: 505 },
-  { month: "March", hours: 357 },
-  { month: "April", hours: 263 },
-  { month: "May", hours: 339 },
-  { month: "June", hours: 354 },
-]
-
-const studyActivityConfig = {
-  hours: {
-    label: "Total Study Hours",
-    color: "hsl(var(--primary))",
-  },
-} satisfies ChartConfig
 
 export default function DashboardPage() {
   return (
@@ -99,49 +73,11 @@ export default function DashboardPage() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Your Progress Overview</h2>
+        <h2 className="text-2xl font-semibold mb-4">Your Study Activity</h2>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center"><TrendingUp className="mr-2 h-5 w-5 text-primary" />Study Activity (Last 6 Months)</CardTitle>
-            <CardDescription>Total study hours per month (mock data)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={studyActivityConfig} className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart accessibilityLayer data={studyActivityData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                  />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="hours" fill="var(--color-hours)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-           <CardFooter className="flex-col items-start gap-2 text-sm">
-            <div className="flex gap-2 font-medium leading-none">
-              Trending up by 5.2% this month <Zap className="h-4 w-4" />
-            </div>
-            <div className="leading-none text-muted-foreground">
-              Showing total study hours for the last 6 months
-            </div>
-          </CardFooter>
-        </Card>
-      </section>
-
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">Overall Learning Journey</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle>Syllabus Coverage</CardTitle>
-            <CardDescription>Your progress through the current study path.</CardDescription>
+            <CardTitle className="flex items-center"><Activity className="mr-2 h-5 w-5 text-primary" />Recent Progress</CardTitle>
+            <CardDescription>Your progress in subjects (mock data).</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -158,9 +94,22 @@ export default function DashboardPage() {
               </div>
               <Progress value={40} aria-label="Physics progress 40%" />
             </div>
+             <div className="space-y-2 mt-4">
+              <div className="flex justify-between">
+                <span>Chemistry</span>
+                <span>60%</span>
+              </div>
+              <Progress value={60} aria-label="Chemistry progress 60%" />
+            </div>
           </CardContent>
-           <CardFooter>
-             <Link href="/analytics" className="w-full">
+           <CardFooter className="flex-col items-start gap-2 text-sm">
+            <div className="flex gap-2 font-medium leading-none">
+              Trending up by 5.2% this month <TrendingUp className="h-4 w-4 text-green-500" />
+            </div>
+            <div className="leading-none text-muted-foreground">
+              Showing overall syllabus coverage.
+            </div>
+             <Link href="/analytics" className="w-full mt-4">
                 <Button variant="outline" className="w-full">
                     <BarChart3 className="mr-2 h-4 w-4" /> View Detailed Analytics
                 </Button>
