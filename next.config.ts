@@ -32,13 +32,27 @@ const nextConfig: NextConfig = {
         perf_hooks: false, // another node-specific module
       };
 
+      // Use null-loader for problematic OTel modules on client
+      // This can be more effective than IgnorePlugin with Turbopack
+      config.module.rules.push(
+        {
+          test: /@opentelemetry\/context-async-hooks/,
+          use: 'null-loader',
+        },
+        {
+          test: /@opentelemetry\/sdk-trace-node/,
+          use: 'null-loader',
+        }
+      );
+
       // Ignore problematic server-side modules in client bundles
+      // These might be redundant if null-loader works, but kept for Webpack compatibility
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^@opentelemetry\/sdk-trace-node$/,
+          resourceRegExp: /^@opentelemetry\/sdk-trace-node(\/.*)?$/,
         }),
         new webpack.IgnorePlugin({
-          resourceRegExp: /^@opentelemetry\/context-async-hooks$/,
+          resourceRegExp: /^@opentelemetry\/context-async-hooks(\/.*)?$/,
         }),
         // Add an IgnorePlugin specifically for async_hooks itself
         // This can be more effective if resolve.fallback is not fully respected by Turbopack for this module
