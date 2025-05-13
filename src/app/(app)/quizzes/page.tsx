@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, type FormEvent, useEffect, useRef } from "react";
@@ -43,19 +42,20 @@ export default function QuizzesPage() {
   const [quiz, setQuiz] = useState<GenerateInteractiveQuizOutput | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedRadioAnswer, setSelectedRadioAnswer] = useState<string | null>(null);
-  const [textInputAnswer, setTextInputAnswer] = useState<string>(""); // For fill-in-the-blanks and short-answer
+  const [textInputAnswer, setTextInputAnswer] = useState<string>(""); 
 
   const [userAnswers, setUserAnswers] = useState<string[]>([]);
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingQuizGeneration, setIsLoadingQuizGeneration] = useState(false);
+  const [isEndingEarly, setIsEndingEarly] = useState(false);
+  const [isSavingFinalResults, setIsSavingFinalResults] = useState(false);
   const { toast } = useToast();
   const { user, refreshUserProfile } = useAuth();
 
-  // Timed Mode State
   const [isTimedModeEnabled, setIsTimedModeEnabled] = useState<boolean>(false);
-  const [timePerQuestion, setTimePerQuestion] = useState<number>(2); // minutes
-  const [quizTimeLeft, setQuizTimeLeft] = useState<number | null>(null); // seconds
+  const [timePerQuestion, setTimePerQuestion] = useState<number>(2); 
+  const [quizTimeLeft, setQuizTimeLeft] = useState<number | null>(null); 
   const [isQuizActive, setIsQuizActive] = useState<boolean>(false); 
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -94,7 +94,7 @@ export default function QuizzesPage() {
       try {
         const dataUri = await fileToDataUri(file);
         setPdfDataUri(dataUri);
-        resetQuizState(false); // Don't reset form inputs
+        resetQuizState(false); 
       } catch (error) {
         toast({ title: "Error Reading File", description: "Could not read the PDF file.", variant: "destructive" });
       }
@@ -112,13 +112,12 @@ export default function QuizzesPage() {
     setIsQuizActive(false);
     setQuizTimeLeft(null);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    setIsEndingEarly(false);
+    setIsSavingFinalResults(false);
 
     if (resetFormInputs) {
         setPdfFile(null);
         setPdfDataUri(null);
-        // setNumberOfQuestions(5); // Keep user's preference
-        // setDifficultyLevel('medium'); // Keep user's preference
-        // setSelectedQuestionTypes(['mcq']); // Keep user's preference
     }
   };
 
@@ -137,15 +136,15 @@ export default function QuizzesPage() {
       toast({ title: "Invalid Duration", description: "Time per question must be greater than 0 for timed mode.", variant: "destructive" }); return;
     }
 
-    setIsLoading(true);
-    resetQuizState(false); // Don't reset form inputs, only quiz active state
+    setIsLoadingQuizGeneration(true);
+    resetQuizState(false); 
 
     try {
       const result = await generateInteractiveQuiz({ 
         pdfDataUri, 
         numberOfQuestions,
         difficultyLevel,
-        questionTypes: selectedQuestionTypes.length > 0 ? selectedQuestionTypes : undefined // Pass undefined if empty to use default in flow
+        questionTypes: selectedQuestionTypes.length > 0 ? selectedQuestionTypes : undefined 
       });
       if (result.questions && result.questions.length > 0) {
         setQuiz(result);
@@ -165,7 +164,7 @@ export default function QuizzesPage() {
       console.error("Quiz generation error:", error);
       toast({ title: "Quiz Generation Failed", description: (error as Error).message || "Could not generate quiz.", variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setIsLoadingQuizGeneration(false);
     }
   };
   
@@ -196,7 +195,7 @@ export default function QuizzesPage() {
     let isCorrect = false;
     if (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') {
         isCorrect = currentAnswer.toLowerCase() === currentQuestion.answer.toLowerCase();
-    } else { // mcq or trueFalse
+    } else { 
         isCorrect = currentAnswer === currentQuestion.answer;
     }
 
@@ -206,7 +205,7 @@ export default function QuizzesPage() {
     setShowFeedback(true);
 
     if (currentQuestionIndex === quiz.questions.length - 1) {
-        setIsQuizActive(false); // Stop timer for last question upon submission
+        setIsQuizActive(false); 
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     }
   };
@@ -219,7 +218,7 @@ export default function QuizzesPage() {
         userAnswer: userAnswers[index] || (reasonForSaving === "time_up" ? "Not Answered (Time Up)" : reasonForSaving === "ended_early" ? "Not Answered (Ended Early)" : "Not Answered"),
         correctAnswer: q.answer,
         options: q.options || [],
-        isCorrect: userAnswers[index]?.toLowerCase() === q.answer.toLowerCase(), // Simplified, might need adjustment for shortAnswer
+        isCorrect: userAnswers[index]?.toLowerCase() === q.answer.toLowerCase(), 
         questionType: q.type,
     }));
 
@@ -250,15 +249,14 @@ export default function QuizzesPage() {
     setShowFeedback(false);
     setSelectedRadioAnswer(null);
     setTextInputAnswer(""); 
-    if (quiz && currentQuestionIndex === quiz.questions.length - 1) {
-      await saveQuizResults("completed");
-      setIsQuizActive(false); // Quiz is over
+    if (quiz && currentQuestionIndex < quiz.questions.length - 1) { // Only advance if not the last question
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
-    setCurrentQuestionIndex(currentQuestionIndex + 1);
+    // Saving for "completed" state is now handled by the "Finish & View Score" button
   };
   
   const handleTimeUp = async () => {
-    if (!isQuizActive && quizTimeLeft !== 0) return; // Prevent multiple calls unless time actually ran out
+    if (!isQuizActive && quizTimeLeft !== 0) return; 
     
     setIsQuizActive(false);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
@@ -266,7 +264,7 @@ export default function QuizzesPage() {
     
     if (quiz && !showFeedback) { 
         const updatedAnswers = [...userAnswers];
-        if (!updatedAnswers[currentQuestionIndex] && currentQuestion) { // If current question has not been answered
+        if (!updatedAnswers[currentQuestionIndex] && currentQuestion) { 
              updatedAnswers[currentQuestionIndex] = "Not Answered (Time Up)";
              setUserAnswers(updatedAnswers);
         }
@@ -279,24 +277,22 @@ export default function QuizzesPage() {
 
   const handleEndTestEarly = async () => {
     if (!isQuizActive || !quiz) return;
+    setIsEndingEarly(true);
     setIsQuizActive(false);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     
-    // If current question has an answer typed but not submitted, consider it.
-    // Otherwise, mark unattempted questions.
     const updatedAnswers = [...userAnswers];
     if (currentQuestion && !updatedAnswers[currentQuestionIndex]) {
         const currentVal = (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') ? textInputAnswer : selectedRadioAnswer;
         if (currentVal && currentVal.trim() !== "") {
             updatedAnswers[currentQuestionIndex] = currentVal.trim();
-             // Check if this answer is correct for score
             let isCorrect = false;
             if (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') {
                 isCorrect = currentVal.trim().toLowerCase() === currentQuestion.answer.toLowerCase();
             } else {
                 isCorrect = currentVal === currentQuestion.answer;
             }
-            if(isCorrect) setScore(prevScore => prevScore +1); // Manually adjust score for this one last answer
+            if(isCorrect) setScore(prevScore => prevScore +1);
         } else {
             updatedAnswers[currentQuestionIndex] = "Not Answered (Ended Early)";
         }
@@ -306,8 +302,9 @@ export default function QuizzesPage() {
     }
     setUserAnswers(updatedAnswers);
 
-    setShowFeedback(true); // Show feedback for the current or last attempted question
+    setShowFeedback(true); 
     await saveQuizResults("ended_early");
+    setIsEndingEarly(false);
     toast({ title: "Quiz Ended", description: "Your quiz has been submitted.", variant: "default" });
   };
 
@@ -341,7 +338,7 @@ export default function QuizzesPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="num-questions">Number of Questions</Label>
+                <Label htmlFor="num-questions">Number of Questions (1-20)</Label>
                 <Input
                   id="num-questions" type="number" value={numberOfQuestions}
                   onChange={(e) => {
@@ -413,8 +410,8 @@ export default function QuizzesPage() {
               )}
             </div>
 
-            <Button type="submit" disabled={isLoading || !pdfDataUri || selectedQuestionTypes.length === 0} className="w-full">
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isLoadingQuizGeneration || !pdfDataUri || selectedQuestionTypes.length === 0} className="w-full">
+              {isLoadingQuizGeneration && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <FilePlus className="mr-2 h-4 w-4" /> Generate Quiz
             </Button>
           </form>
@@ -456,7 +453,7 @@ export default function QuizzesPage() {
             )}
             {currentQuestion.type === 'trueFalse' && (
               <RadioGroup value={selectedRadioAnswer || ""} onValueChange={setSelectedRadioAnswer} disabled={showFeedback}>
-                {(currentQuestion.options || ["True", "False"]).map((option, index) => ( // Fallback if options aren't set by AI
+                {(currentQuestion.options || ["True", "False"]).map((option, index) => ( 
                   <div key={index} className="flex items-center space-x-2 p-2 rounded-md hover:bg-secondary/50 transition-colors">
                     <RadioGroupItem value={option} id={`option-${index}`} />
                     <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">{option}</Label>
@@ -489,6 +486,7 @@ export default function QuizzesPage() {
             {!showFeedback ? (
               <Button onClick={handleAnswerSubmit} 
                 disabled={
+                    isEndingEarly || isSavingFinalResults ||
                     ((currentQuestion.type === 'mcq' || currentQuestion.type === 'trueFalse') && !selectedRadioAnswer) ||
                     ((currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') && !textInputAnswer.trim())
                 }>
@@ -508,17 +506,28 @@ export default function QuizzesPage() {
                   </div>
                 )}
                 {currentQuestionIndex < quiz.questions.length - 1 ? (
-                  <Button onClick={handleNextQuestion} className="w-full">Next Question</Button>
+                  <Button onClick={handleNextQuestion} className="w-full" disabled={isEndingEarly || isSavingFinalResults}>Next Question</Button>
                 ) : null}
               </div>
             )}
-             {isQuizActive && !showFeedback && quiz && currentQuestionIndex < quiz.questions.length && ( // Show End Test button throughout the quiz if active and not on feedback
-                <Button onClick={handleEndTestEarly} variant="outline" className="w-full mt-2">
+             {isQuizActive && !showFeedback && quiz && currentQuestionIndex < quiz.questions.length && ( 
+                <Button onClick={handleEndTestEarly} variant="outline" className="w-full mt-2" disabled={isEndingEarly || isSavingFinalResults}>
+                    {isEndingEarly && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <StopCircle className="mr-2 h-4 w-4" /> End Test Early
                 </Button>
             )}
-             {showFeedback && currentQuestionIndex === quiz.questions.length -1 && ( // Show Finish & View Score button on the last question's feedback
-                 <Button onClick={() => { resetQuizState(true); }} className="w-full mt-4">
+             {showFeedback && currentQuestionIndex === quiz.questions.length -1 && ( 
+                 <Button 
+                    onClick={async () => { 
+                        setIsSavingFinalResults(true);
+                        await saveQuizResults("completed");
+                        setIsSavingFinalResults(false);
+                        resetQuizState(true); 
+                    }} 
+                    className="w-full mt-4" 
+                    disabled={isSavingFinalResults || isEndingEarly}
+                >
+                    {isSavingFinalResults && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <ListChecks className="mr-2 h-4 w-4" /> Finish & View Score
                 </Button>
             )}
@@ -545,6 +554,3 @@ export default function QuizzesPage() {
     </div>
   );
 }
-
-
-    

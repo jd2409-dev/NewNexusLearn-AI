@@ -147,7 +147,7 @@ export default function TextbookAnalyzerPage() {
                 rows={3}
               />
             </div>
-            <Button type="submit" disabled={isLoadingAnalysis || !pdfDataUri || !question}>
+            <Button type="submit" disabled={isLoadingAnalysis || !pdfDataUri || !question} className="w-full sm:w-auto">
               {isLoadingAnalysis && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <ScanSearch className="mr-2 h-4 w-4" /> Find Answer
             </Button>
