@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
         }),
         new webpack.IgnorePlugin({
           resourceRegExp: /^@opentelemetry\/context-async-hooks$/,
+        }),
+        // Add an IgnorePlugin specifically for async_hooks itself
+        // This can be more effective if resolve.fallback is not fully respected by Turbopack for this module
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^async_hooks$/,
         })
       );
     }
@@ -60,4 +65,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
