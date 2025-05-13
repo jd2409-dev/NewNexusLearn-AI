@@ -34,8 +34,7 @@ import {
   User,
   Edit3, 
   FileClock, 
-  Trophy, // Icon for Achievements
-  Users, // Icon for Leaderboard
+  Trophy, 
 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,7 +49,7 @@ const navItems = [
   { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" },
   { href: "/reflection", icon: FileClock, label: "Reflection" },
   { href: "/achievements", icon: Trophy, label: "Achievements" },
-  { href: "/leaderboard", icon: Users, label: "Leaderboard" },
+  // { href: "/leaderboard", icon: Users, label: "Leaderboard" }, // Removed Leaderboard
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
@@ -145,3 +144,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+

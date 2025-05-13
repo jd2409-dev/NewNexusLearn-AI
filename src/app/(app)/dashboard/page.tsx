@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp, Activity, Loader2, Gem, Target as LevelIcon, Award as XPIcon, ShieldAlert, Star } from "lucide-react";
+import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp, Activity, Loader2, Gem, Target as LevelIcon, Award as XPIcon, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
@@ -149,27 +149,6 @@ export default function DashboardPage() {
           </CardFooter>
         </Card>
       </section>
-
-       <section>
-        <h2 className="text-2xl font-semibold mb-4">Challenges & Leaderboard</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-           <DashboardCard
-            title="Study Challenges"
-            description="Engage in AI-generated timed challenges. (Coming Soon)"
-            icon={<ShieldAlert className="h-8 w-8 text-primary" />}
-            href="#" // Placeholder for challenges page
-            actionText="View Challenges"
-            disabled
-          />
-          <DashboardCard
-            title="Leaderboards"
-            description="See how you rank among other learners. (Coming Soon)"
-            icon={<BarChart3 className="h-8 w-8 text-primary" />}
-            href="/leaderboard"
-            actionText="View Leaderboards"
-          />
-        </div>
-      </section>
     </div>
   );
 }
@@ -221,3 +200,4 @@ function StatCard({ title, value, icon }: StatCardProps) {
     </Card>
   );
 }
+
