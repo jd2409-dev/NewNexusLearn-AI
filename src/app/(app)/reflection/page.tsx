@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, FileClock, Sparkles, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { Loader2, FileClock, Sparkles, CheckCircle2, AlertCircle, Info, Timer } from "lucide-react";
 import type { PastQuiz, PastQuizQuestionDetail } from "@/lib/user-service";
 import { generateQuizReflection, type GenerateQuizReflectionOutput } from "@/ai/flows/generate-quiz-reflection";
 import { updatePastQuizReflection } from "@/lib/user-service";
@@ -21,7 +21,6 @@ export default function ReflectionPage() {
 
   useEffect(() => {
     if (userProfile?.studyData?.pastQuizzes) {
-      // Sort quizzes by date, newest first
       const sortedQuizzes = [...userProfile.studyData.pastQuizzes].sort((a, b) => {
         const dateA = a.dateAttempted.toDate ? a.dateAttempted.toDate() : new Date(a.dateAttempted as any);
         const dateB = b.dateAttempted.toDate ? b.dateAttempted.toDate() : new Date(b.dateAttempted as any);
@@ -40,7 +39,7 @@ export default function ReflectionPage() {
         questions: quiz.questions,
       });
       await updatePastQuizReflection(user.uid, quiz.id, result.reflectionText);
-      await refreshUserProfile(); // This will trigger useEffect to update pastQuizzes state
+      await refreshUserProfile(); 
       toast({
         title: "Reflection Generated",
         description: `AI has provided feedback for "${quiz.quizName}".`,
@@ -59,16 +58,21 @@ export default function ReflectionPage() {
   
   const formatDate = (timestamp: any): string => {
     if (!timestamp) return "N/A";
-    // Firebase Timestamps have a toDate() method
     if (timestamp.toDate) {
-      return format(timestamp.toDate(), "PPP p"); // eg. Jun 21, 2023, 2:30 PM
+      return format(timestamp.toDate(), "PPP p"); 
     }
-    // Fallback for JS Date objects (should ideally not happen if Timestamps are stored)
     try {
        return format(new Date(timestamp), "PPP p");
     } catch {
        return "Invalid Date";
     }
+  };
+
+  const formatSecondsToMMSS = (seconds: number | undefined): string => {
+    if (seconds === undefined || seconds === null) return "N/A";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
 
@@ -105,14 +109,21 @@ export default function ReflectionPage() {
                 <AccordionItem value={quiz.id} key={quiz.id}>
                   <AccordionTrigger>
                     <div className="flex justify-between w-full items-center pr-2">
-                        <span className="truncate mr-2">{quiz.quizName}</span>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="truncate mr-2 font-medium">{quiz.quizName} {quiz.wasTimed && <Timer className="inline-block h-4 w-4 ml-1 text-primary" />}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 text-xs sm:text-sm text-muted-foreground text-right">
                             <span>{formatDate(quiz.dateAttempted)}</span>
                             <span>Score: {quiz.score}/{quiz.totalQuestions}</span>
                         </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="space-y-4 p-4 bg-secondary/30 rounded-b-md">
+                    {quiz.wasTimed && (
+                      <div className="text-sm text-muted-foreground mb-2">
+                        This was a timed quiz.
+                        {quiz.timeLimitPerQuestion && <span> Time limit per question: {quiz.timeLimitPerQuestion} min(s).</span>}
+                        {quiz.timeLeft !== undefined && <span> Time left at submission: {formatSecondsToMMSS(quiz.timeLeft)}.</span>}
+                      </div>
+                    )}
                     <div>
                       <h4 className="font-semibold mb-2 text-lg">Quiz Details:</h4>
                       {quiz.questions.map((q, index) => (
