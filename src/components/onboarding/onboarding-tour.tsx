@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, CheckCircle, Compass, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, Compass, Home, BookOpenText, Lightbulb, ScanText, MessageSquareHeart, Edit3, FileClock, Trophy, X } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface OnboardingTourProps {
@@ -24,43 +24,42 @@ interface OnboardingTourProps {
 const tourSteps = [
   {
     title: "Welcome to NexusLearn AI!",
-    description: "Let's take a quick tour of the key features designed to supercharge your learning. Click 'Next' to begin!",
+    description: "Let's take a quick tour of the key features designed to supercharge your learning. The sidebar on your left is your main navigation tool. Click 'Next' to begin!",
     icon: <Compass className="h-10 w-10 text-primary mb-4" />,
   },
   {
     title: "Your Dashboard",
-    description: "This is your central hub! Track your XP, level, coins, daily streak, and quickly access key features. Keep an eye on your subject progress here.",
-    icon: <Compass className="h-10 w-10 text-primary mb-4" />,
+    description: "After this tour, you'll land on your Dashboard. It's your central hub! Track your XP, level, coins, daily streak, and quickly access key features. Keep an eye on your subject progress here.",
+    icon: <Home className="h-10 w-10 text-primary mb-4" />,
   },
   {
     title: "Learning Paths",
-    description: "Navigate to 'Learning Paths' from the sidebar to generate AI-powered study plans tailored to your specific board and subjects. Optimize your study for exams!",
-    icon: <Compass className="h-10 w-10 text-primary mb-4" />,
+    description: "In the sidebar on your left, click 'Learning Paths' to generate AI-powered study plans. These are tailored to your specific board (like CBSE, ICSE) and subjects, helping you optimize for exams!",
+    icon: <BookOpenText className="h-10 w-10 text-primary mb-4" />,
   },
   {
     title: "Interactive Quizzes",
-    description: "Go to 'Quizzes' in the sidebar. Upload a PDF, and AI will generate interactive quizzes with various question types (MCQs, True/False etc.) and difficulty levels. Try the timed mode for exam practice!",
-    icon: <Compass className="h-10 w-10 text-primary mb-4" />,
+    description: "Find 'Quizzes' in the sidebar. Upload a PDF, and our AI will generate interactive quizzes. You can choose question types (MCQs, True/False, etc.) and difficulty. Try the timed mode for exam practice!",
+    icon: <Lightbulb className="h-10 w-10 text-primary mb-4" />,
   },
   {
     title: "Textbook Analyzer",
-    description: "Use the 'Textbook Analyzer' to upload your textbook PDFs. Ask specific questions to find answers within the text or generate concise study summaries.",
-    icon: <Compass className="h-10 w-10 text-primary mb-4" />,
-
+    description: "Use the 'Textbook Analyzer' (also in the sidebar!) to upload your textbook PDFs. Ask specific questions to find answers directly within the text, or generate concise study summaries.",
+    icon: <ScanText className="h-10 w-10 text-primary mb-4" />,
   },
   {
     title: "AI Coach & Writing Assistant",
-    description: "Stuck on a problem? The 'AI Coach' provides step-by-step explanations. Need writing help? The 'Writing Assistant' offers feedback on grammar, structure, and clarity.",
-    icon: <Compass className="h-10 w-10 text-primary mb-4" />,
+    description: "Stuck on a problem? The 'AI Coach' provides step-by-step explanations. Need writing help? The 'Writing Assistant' offers feedback. Both are accessible from the sidebar.",
+    icon: <div className="flex gap-2 mb-4"><MessageSquareHeart className="h-10 w-10 text-primary" /> <Edit3 className="h-10 w-10 text-primary" /></div>,
   },
   {
     title: "Reflection & Achievements",
-    description: "Visit 'Reflection' to review past quiz performance and get AI advice. Check 'Achievements' to see the badges and trophies you've unlocked!",
-    icon: <Compass className="h-10 w-10 text-primary mb-4" />,
+    description: "Visit 'Reflection' (sidebar) to review past quiz performance and get AI advice. Check 'Achievements' to see the badges and trophies you've unlocked as you learn!",
+    icon: <div className="flex gap-2 mb-4"><FileClock className="h-10 w-10 text-primary" /> <Trophy className="h-10 w-10 text-primary" /></div>,
   },
   {
     title: "You're All Set!",
-    description: "You've completed the tour. Explore all the features NexusLearn AI has to offer and start your personalized learning journey. Happy studying!",
+    description: "You've completed the tour. Explore all the features NexusLearn AI has to offer using the sidebar navigation and start your personalized learning journey. Happy studying!",
     icon: <CheckCircle className="h-10 w-10 text-green-500 mb-4" />,
   },
 ];
