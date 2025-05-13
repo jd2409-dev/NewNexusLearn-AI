@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -31,6 +32,7 @@ import {
   ChevronUp,
   LogOut,
   User,
+  Edit3, // Icon for Writing Assistant
 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,6 +44,7 @@ const navItems = [
   { href: "/textbook-analyzer", icon: ScanText, label: "Textbook Analyzer" },
   { href: "/quizzes", icon: Lightbulb, label: "Quizzes" },
   { href: "/ai-coach", icon: MessageSquareHeart, label: "AI Coach" },
+  { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" }, // New item
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 

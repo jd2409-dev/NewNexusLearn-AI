@@ -1,0 +1,57 @@
+
+workflows:
+  nextjs-build-and-deploy:
+    name: Next.js Build and Deploy
+    environment:
+      node: 20 # Specify Node.js version
+      groups:
+        - firebase_credentials # Group for Firebase service account or token
+      vars:
+        FIREBASE_PROJECT_ID: YOUR_FIREBASE_PROJECT_ID # Add your Firebase Project ID here
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install --legacy-peer-deps
+      - name: Build Next.js app
+        script: |
+          npm run build
+      - name: Install Firebase CLI
+        script: |
+          npm install -g firebase-tools
+      - name: Deploy to Firebase App Hosting (or Hosting)
+        script: |
+          # For Firebase App Hosting (using apphosting.yaml configuration)
+          # Ensure FIREBASE_TOKEN is set in firebase_credentials group
+          # firebase apphosting:backends:deploy YOUR_BACKEND_ID --project=$FIREBASE_PROJECT_ID --token=$FIREBASE_TOKEN
+          
+          # OR For Firebase Hosting (if not using App Hosting primarily for the frontend)
+          # firebase deploy --only hosting --project=$FIREBASE_PROJECT_ID --token=$FIREBASE_TOKEN
+
+          # As apphosting.yaml is present, this project targets Firebase App Hosting.
+          # The actual deployment command might depend on how Codemagic interacts with App Hosting.
+          # Typically, for App Hosting, a git push to the connected repository triggers a build and deploy.
+          # If manual trigger from Codemagic is needed, it would likely involve calling a webhook or a specific Firebase CLI command for App Hosting.
+          # For this example, we'll assume a general build process. The deployment step
+          # needs to be tailored to the specific Firebase service (App Hosting vs Hosting)
+          # and authentication method (Service Account vs Token).
+
+          # Placeholder for actual deployment command - adjust as per your setup
+          echo "Build complete. Deployment to Firebase App Hosting is typically triggered by a git push to the configured repository."
+          echo "If deploying to Firebase Hosting, use: firebase deploy --only hosting --project=$FIREBASE_PROJECT_ID --token=$FIREBASE_TOKEN"
+          # Example for deploying to Firebase Hosting (ensure public directory is correctly set in firebase.json for 'hosting')
+          # firebase.json might need to point 'public' to '.next/server/app' or similar for SSR, or 'out' for SSG.
+          # For App Hosting, the `apphosting.yaml` handles the backend deployment. Frontend is usually served via App Hosting's SSR capabilities.
+    artifacts:
+      - .next/**/* # Next.js build artifacts
+      - public/**/*
+      - apphosting.yaml
+      - package.json
+      - next.config.ts
+    publishing:
+      # Example: Email notification
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true

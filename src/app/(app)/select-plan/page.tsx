@@ -23,15 +23,20 @@ const freePlanFeatures = [
 ];
 
 const paidPlanFeatures = [
-  "Issac Groot N1 AI Integration: Advanced reinforcement learning for deeper mastery.",
-  "Full Access to 'Upload Textbook & Ask AI': Precise page references, detailed answers.",
-  "Unlimited Homework Help: Step-by-step solutions and explanations.",
-  "Adaptive Exam Preparation & Difficulty Scaling: AI adjusts quiz complexity.",
-  "Multi-Format Study Summaries: Detailed Text, Audio, Mind Maps, Video Summaries.",
-  "Advanced Study Analytics & Reinforcement Learning: Tracks weak areas, personalizes flow.",
+  "Issac Groot N1 AI Integration: Advanced reinforcement learning for deeper mastery (Coming Soon).",
+  "Full Access to 'Upload Textbook & Ask AI' Feature: Precise page references, detailed answers.",
+  "AI Writing Assistant: Get feedback on grammar, clarity, and structure for your essays and reports.",
+  "Unlimited Homework Help: Step-by-step solutions and explanations via AI Coach.",
+  "Adaptive Exam Preparation & Difficulty Scaling (Coming Soon).",
+  "Multi-Format Study Summaries:",
+  "  - Detailed Text Summaries (Available)",
+  "  - Audio Summaries (Coming Soon)",
+  "  - Mind Maps (Coming Soon)",
+  "  - Video-Based AI Summaries (Coming Soon)",
+  "Advanced Study Analytics & Reinforcement Learning (Coming Soon).",
   "Live AI Study Coaching: Real-time explanations, detailed subject tutoring.",
   "Unlimited AI Tutor Sessions: Subject-specific tutoring on demand.",
-  "Full Offline Mode: Complete access to materials offline.",
+  "Full Offline Mode (Coming Soon for all materials).",
 ];
 
 interface PlanCardProps {
@@ -110,9 +115,6 @@ export default function SelectPlanPage() {
     }
   };
   
-  // If user somehow lands here without being logged in (e.g. direct navigation)
-  // and auth state is still loading, show a loader. If auth is done and no user, redirect.
-  // This is a fallback, main protection is in (app)/layout.tsx
   if (!user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-background to-secondary/30">
@@ -149,7 +151,7 @@ export default function SelectPlanPage() {
         <PlanCard
           title="Paid Plan"
           price="$5/month"
-          description="Advanced AI tools for comprehensive learning."
+          description="Unlock advanced AI tools & features for comprehensive learning."
           features={paidPlanFeatures}
           onSelectPlan={() => handleSelectPlan("paid")}
           isLoading={isLoadingPaid}
@@ -158,7 +160,7 @@ export default function SelectPlanPage() {
         />
       </div>
       <footer className="text-center mt-12 text-muted-foreground text-sm">
-         <p>The Paid Plan includes Issac Groot N1 AI Integration. You can find more about Issac Groot N1 <a href="https://github.com/IssacGrootN1" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">here</a>.</p>
+         <p>The Paid Plan includes Issac Groot N1 AI Integration (Coming Soon). You can find more about Issac Groot N1 <a href="https://github.com/IssacGrootN1" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">here</a>.</p>
         <p>© {new Date().getFullYear()} NexusLearn AI. All rights reserved.</p>
       </footer>
     </div>

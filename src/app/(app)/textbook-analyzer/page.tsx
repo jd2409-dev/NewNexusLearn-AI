@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -10,7 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { analyzeTextbookData, type AnalyzeTextbookDataOutput } from "@/ai/flows/analyze-textbook-data";
 import { generateStudySummary, type GenerateStudySummaryOutput } from "@/ai/flows/generate-study-summary";
 import { fileToDataUri } from "@/lib/file-utils";
-import { Loader2, ScanSearch, FileText, Ear, Brain, Film } from "lucide-react";
+import { Loader2, ScanSearch, FileText, Ear, Brain, Film, Lock } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { Badge } from "@/components/ui/badge";
 
 export default function TextbookAnalyzerPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -21,6 +24,8 @@ export default function TextbookAnalyzerPage() {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
+  const isPaidPlan = userProfile?.plan === "paid";
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -110,6 +115,22 @@ export default function TextbookAnalyzerPage() {
     }
   };
 
+  const handleFeatureClick = (featureName: string) => {
+    if (!isPaidPlan) {
+      toast({
+        title: "Paid Feature",
+        description: `${featureName} is available for paid plan users. Please upgrade your plan.`,
+        variant: "default",
+      });
+    } else {
+       toast({
+        title: "Coming Soon",
+        description: `${featureName} will be available soon for paid plan users.`,
+        variant: "default",
+      });
+    }
+  }
+
   return (
     <div className="space-y-8">
       <Card>
@@ -182,19 +203,34 @@ export default function TextbookAnalyzerPage() {
                 </CardContent>
                 </Card>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-                <Button variant="outline" disabled={!pdfDataUri} className="w-full">
-                    <Ear className="mr-2 h-4 w-4" /> Audio Summary (Soon)
-                </Button>
-                <Button variant="outline" disabled={!pdfDataUri} className="w-full">
-                    <Brain className="mr-2 h-4 w-4" /> Mind Map (Soon)
-                </Button>
-                <Button variant="outline" disabled={!pdfDataUri} className="w-full">
-                    <Film className="mr-2 h-4 w-4" /> Video Explanation (Soon)
-                </Button>
+            <div className="pt-4">
+              <Label className="text-base font-semibold">Advanced Summaries (Paid Plan)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <Button variant="outline" disabled={!pdfDataUri} onClick={() => handleFeatureClick("Audio Summary")} className="w-full relative">
+                      <Ear className="mr-2 h-4 w-4" /> Audio Summary
+                      {!isPaidPlan && <Lock className="h-3 w-3 absolute top-1 right-1 text-muted-foreground" />}
+                      {isPaidPlan && <Badge variant="outline" className="absolute top-1 right-1 text-xs px-1 py-0">Soon</Badge>}
+                  </Button>
+                  <Button variant="outline" disabled={!pdfDataUri} onClick={() => handleFeatureClick("Mind Map")} className="w-full relative">
+                      <Brain className="mr-2 h-4 w-4" /> Mind Map
+                       {!isPaidPlan && <Lock className="h-3 w-3 absolute top-1 right-1 text-muted-foreground" />}
+                       {isPaidPlan && <Badge variant="outline" className="absolute top-1 right-1 text-xs px-1 py-0">Soon</Badge>}
+                  </Button>
+                  <Button variant="outline" disabled={!pdfDataUri} onClick={() => handleFeatureClick("Video Explanation")} className="w-full relative">
+                      <Film className="mr-2 h-4 w-4" /> Video Explanation
+                       {!isPaidPlan && <Lock className="h-3 w-3 absolute top-1 right-1 text-muted-foreground" />}
+                       {isPaidPlan && <Badge variant="outline" className="absolute top-1 right-1 text-xs px-1 py-0">Soon</Badge>}
+                  </Button>
+              </div>
             </div>
         </CardContent>
+         <CardFooter>
+            <p className="text-xs text-muted-foreground">
+                Text summaries are available for all users. Advanced summary formats like Audio, Mind Maps, and Video Explanations are part of the Paid Plan and are coming soon.
+            </p>
+          </CardFooter>
       </Card>
     </div>
   );
 }
+
