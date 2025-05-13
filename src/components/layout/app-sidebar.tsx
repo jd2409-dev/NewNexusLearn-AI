@@ -33,7 +33,9 @@ import {
   LogOut,
   User,
   Edit3, 
-  FileClock, // Icon for Reflection
+  FileClock, 
+  Trophy, // Icon for Achievements
+  Users, // Icon for Leaderboard
 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -46,7 +48,9 @@ const navItems = [
   { href: "/quizzes", icon: Lightbulb, label: "Quizzes" },
   { href: "/ai-coach", icon: MessageSquareHeart, label: "AI Coach" },
   { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" },
-  { href: "/reflection", icon: FileClock, label: "Reflection" }, // New item
+  { href: "/reflection", icon: FileClock, label: "Reflection" },
+  { href: "/achievements", icon: Trophy, label: "Achievements" },
+  { href: "/leaderboard", icon: Users, label: "Leaderboard" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
@@ -83,7 +87,7 @@ export function AppSidebar() {
     return namePart.substring(0, 2).toUpperCase();
   };
 
-  if (!user) { // Should not happen if AppLayout protection works, but as a safeguard
+  if (!user) { 
     return null;
   }
 
@@ -129,21 +133,6 @@ export function AppSidebar() {
               </SidebarMenuItem>
               {isAccountOpen && (
                    <SidebarMenuSub>
-                      {/* <SidebarMenuSubItem>
-                          <SidebarMenuSubButton onClick={() => {router.push('/profile'); closeMobileSidebar();}} isActive={pathname === "/profile"}>
-                              <User className="h-4 w-4" /> Profile
-                          </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                          <SidebarMenuSubButton onClick={() => {router.push('/settings'); closeMobileSidebar();}} isActive={pathname === "/settings"}>
-                              <Settings className="h-4 w-4" /> Settings
-                          </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                       <SidebarMenuSubItem>
-                          <SidebarMenuSubButton onClick={() => {router.push('/support'); closeMobileSidebar();}} isActive={pathname === "/support"}>
-                              <LifeBuoy className="h-4 w-4" /> Support
-                          </SidebarMenuSubButton>
-                      </SidebarMenuSubItem> */}
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton onClick={handleLogout} disabled={authLoading}>
                             <LogOut className="h-4 w-4" /> Log Out

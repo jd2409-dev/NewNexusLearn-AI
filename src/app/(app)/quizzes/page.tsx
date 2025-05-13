@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent, useEffect, useRef } from "react";
@@ -14,7 +15,7 @@ import { generateInteractiveQuiz, type GenerateInteractiveQuizOutput, type QuizQ
 import { fileToDataUri } from "@/lib/file-utils";
 import { Loader2, FilePlus, Zap, AlertCircle, CheckCircle2, Clock, Timer, StopCircle, ListChecks, ShieldQuestion } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { addPastQuiz, type PastQuiz, type PastQuizQuestionDetail } from "@/lib/user-service";
+import { addPastQuiz, type PastQuiz, type PastQuizQuestionDetail, addXpAndCoins, unlockAchievement } from "@/lib/user-service";
 import { Timestamp } from "firebase/firestore";
 import Link from 'next/link';
 
@@ -236,9 +237,9 @@ export default function QuizzesPage() {
     };
 
     try {
-        await addPastQuiz(user.uid, pastQuizData);
-        await refreshUserProfile();
-        toast({ title: "Quiz Results Saved", description: `Your quiz results for "${pastQuizData.quizName}" have been saved.` });
+        await addPastQuiz(user.uid, pastQuizData); // This function now also handles XP/Coins
+        await refreshUserProfile(); // Refreshes profile with new XP, coins, level, achievements
+        toast({ title: "Quiz Results Saved", description: `Your quiz results and rewards for "${pastQuizData.quizName}" have been saved.` });
     } catch (error) {
         console.error("Error saving quiz result:", error);
         toast({ title: "Error Saving Quiz", description: "Could not save your quiz results.", variant: "destructive" });
@@ -249,10 +250,9 @@ export default function QuizzesPage() {
     setShowFeedback(false);
     setSelectedRadioAnswer(null);
     setTextInputAnswer(""); 
-    if (quiz && currentQuestionIndex < quiz.questions.length - 1) { // Only advance if not the last question
+    if (quiz && currentQuestionIndex < quiz.questions.length - 1) { 
         setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
-    // Saving for "completed" state is now handled by the "Finish & View Score" button
   };
   
   const handleTimeUp = async () => {
@@ -272,7 +272,7 @@ export default function QuizzesPage() {
     
     setShowFeedback(true); 
     await saveQuizResults("time_up");
-    toast({ title: "Time's Up!", description: "Your quiz has been automatically submitted.", variant: "default" });
+    toast({ title: "Time's Up!", description: "Your quiz has been automatically submitted and rewards calculated.", variant: "default" });
   };
 
   const handleEndTestEarly = async () => {
@@ -305,7 +305,7 @@ export default function QuizzesPage() {
     setShowFeedback(true); 
     await saveQuizResults("ended_early");
     setIsEndingEarly(false);
-    toast({ title: "Quiz Ended", description: "Your quiz has been submitted.", variant: "default" });
+    toast({ title: "Quiz Ended", description: "Your quiz has been submitted and rewards calculated.", variant: "default" });
   };
 
 
@@ -325,7 +325,7 @@ export default function QuizzesPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Interactive AI Quizzes</CardTitle>
           <CardDescription>
-            Upload a PDF, choose your settings, and test your knowledge with AI-generated questions.
+            Upload a PDF, choose your settings, test your knowledge, and earn rewards!
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -554,3 +554,4 @@ export default function QuizzesPage() {
     </div>
   );
 }
+
