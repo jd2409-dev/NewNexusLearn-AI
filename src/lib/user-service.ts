@@ -45,7 +45,7 @@ export async function createUserProfileDocument(user: User): Promise<void> {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName || user.email?.split('@')[0] || 'User',
-        plan: null,
+        plan: "free", // Default plan for new users
         createdAt: serverTimestamp(),
         studyData: {
           overallProgress: 0,
@@ -60,24 +60,36 @@ export async function createUserProfileDocument(user: User): Promise<void> {
     }
   } else {
     // Ensure existing users have studyData initialized if it's missing
+    // And ensure plan is set if it was previously null
     const currentData = userProfileSnap.data() as UserProfile;
+    const updates: Partial<UserProfile> = {};
+    let needsUpdate = false;
+
     if (!currentData.studyData) {
-      const initialWeeklyHours: WeeklyHours[] = [
-        { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
-        { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
-      ];
-      try {
-        await updateDoc(userProfileRef, {
-          studyData: {
+        const initialWeeklyHours: WeeklyHours[] = [
+            { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
+            { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
+        ];
+        updates.studyData = {
             overallProgress: 0,
             subjects: currentData.studyData?.subjects || [],
             weeklyStudyHours: currentData.studyData?.weeklyStudyHours || initialWeeklyHours,
             lastActivityDate: currentData.studyData?.lastActivityDate || null,
-          }
-        });
-      } catch (error) {
-        console.error("Error initializing studyData for existing user:", error);
-      }
+        };
+        needsUpdate = true;
+    }
+    if (currentData.plan === null) {
+        updates.plan = "free"; // Default plan for existing users without a plan
+        updates.planSelectedAt = serverTimestamp();
+        needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+        try {
+            await updateDoc(userProfileRef, updates);
+        } catch (error) {
+            console.error("Error updating existing user profile with defaults:", error);
+        }
     }
   }
 }
@@ -85,7 +97,7 @@ export async function createUserProfileDocument(user: User): Promise<void> {
 export async function setUserPlan(uid: string, plan: "free" | "paid"): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", uid);
   try {
-    await setDoc(userProfileRef, { plan, planSelectedAt: serverTimestamp() }, { merge: true });
+    await updateDoc(userProfileRef, { plan, planSelectedAt: serverTimestamp() });
   } catch (error) {
     console.error("Error setting user plan:", error);
     throw error; // Re-throw to be caught by caller
@@ -98,18 +110,34 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     const docSnap = await getDoc(userProfileRef);
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfile;
-      // Ensure studyData is present, initialize if not (for older profiles)
-      if (!profile.studyData) {
+      // Ensure studyData and plan are present, initialize if not (for older profiles)
+      if (!profile.studyData || profile.plan === null) {
         const initialWeeklyHours: WeeklyHours[] = [
           { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
           { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
         ];
-        profile.studyData = {
-          overallProgress: 0,
-          subjects: [],
-          weeklyStudyHours: initialWeeklyHours,
-          lastActivityDate: undefined,
-        };
+        const updates: Partial<UserProfile> = {};
+        if(!profile.studyData) {
+            updates.studyData = {
+                overallProgress: 0,
+                subjects: [],
+                weeklyStudyHours: initialWeeklyHours,
+                lastActivityDate: undefined,
+            };
+        }
+        if(profile.plan === null) {
+            updates.plan = "free";
+            updates.planSelectedAt = serverTimestamp();
+        }
+        // Apply updates if any are needed
+        if (Object.keys(updates).length > 0) {
+            await updateDoc(userProfileRef, updates);
+            // Re-fetch the updated profile
+            const updatedDocSnap = await getDoc(userProfileRef);
+            if (updatedDocSnap.exists()) {
+                 return updatedDocSnap.data() as UserProfile;
+            }
+        }
       }
       return profile;
     }
@@ -185,3 +213,4 @@ export async function logStudyHours(userId: string, day: string, hours: number):
     console.error(`Error logging study hours for day ${day}:`, error);
   }
 }
+
