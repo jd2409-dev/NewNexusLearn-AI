@@ -32,7 +32,8 @@ import {
   ChevronUp,
   LogOut,
   User,
-  Edit3, // Icon for Writing Assistant
+  Edit3, 
+  FileClock, // Icon for Reflection
 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -44,7 +45,8 @@ const navItems = [
   { href: "/textbook-analyzer", icon: ScanText, label: "Textbook Analyzer" },
   { href: "/quizzes", icon: Lightbulb, label: "Quizzes" },
   { href: "/ai-coach", icon: MessageSquareHeart, label: "AI Coach" },
-  { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" }, // New item
+  { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" },
+  { href: "/reflection", icon: FileClock, label: "Reflection" }, // New item
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 

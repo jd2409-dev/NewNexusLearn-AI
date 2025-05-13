@@ -1,6 +1,6 @@
 
 import type { User } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, type Timestamp, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, type Timestamp, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "@/firebase";
 
 export interface SubjectProgress {
@@ -14,21 +14,40 @@ export interface WeeklyHours {
   hours: number;
 }
 
+export interface PastQuizQuestionDetail {
+  questionText: string;
+  userAnswer: string;
+  correctAnswer: string;
+  options: string[];
+  isCorrect: boolean;
+}
+
+export interface PastQuiz {
+  id: string; // Unique ID for this quiz attempt
+  quizName: string;
+  dateAttempted: Timestamp;
+  score: number;
+  totalQuestions: number;
+  questions: PastQuizQuestionDetail[];
+  aiReflection?: string;
+}
+
 export interface StudyData {
   overallProgress: number; // 0-100, could be an average or a more complex calculation
   subjects: SubjectProgress[];
   weeklyStudyHours: WeeklyHours[]; // Data for the last 7 days
   lastActivityDate?: Timestamp;
+  pastQuizzes: PastQuiz[];
 }
 
 export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
-  plan: "free" | "paid" | null;
+  plan: "free" | "paid" | null; // Maintained for structure, but app logic now defaults to free with all features
   createdAt: Timestamp;
   planSelectedAt?: Timestamp;
-  studyData?: StudyData; // Optional for existing users, initialized for new users
+  studyData: StudyData; // Now mandatory, initialized for new users
 }
 
 export async function createUserProfileDocument(user: User): Promise<void> {
@@ -45,24 +64,25 @@ export async function createUserProfileDocument(user: User): Promise<void> {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName || user.email?.split('@')[0] || 'User',
-        plan: "free", // Default plan for new users
+        plan: "free", // Default plan for new users, all features enabled
         createdAt: serverTimestamp(),
+        planSelectedAt: serverTimestamp(), // Set plan selection time as it's now auto-assigned
         studyData: {
           overallProgress: 0,
-          subjects: [], // Initially empty, subjects added as user interacts
+          subjects: [],
           weeklyStudyHours: initialWeeklyHours,
           lastActivityDate: null,
+          pastQuizzes: [], // Initialize pastQuizzes
         }
       });
     } catch (error) {
       console.error("Error creating user profile document:", error);
-      // Optionally re-throw or handle as needed
     }
   } else {
-    // Ensure existing users have studyData initialized if it's missing
+    // Ensure existing users have studyData and pastQuizzes initialized if missing
     // And ensure plan is set if it was previously null
     const currentData = userProfileSnap.data() as UserProfile;
-    const updates: Partial<UserProfile> = {};
+    const updates: any = {}; // Use 'any' for flexibility in constructing update object
     let needsUpdate = false;
 
     if (!currentData.studyData) {
@@ -70,19 +90,23 @@ export async function createUserProfileDocument(user: User): Promise<void> {
             { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
             { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
         ];
-        updates.studyData = {
-            overallProgress: 0,
-            subjects: currentData.studyData?.subjects || [],
-            weeklyStudyHours: currentData.studyData?.weeklyStudyHours || initialWeeklyHours,
-            lastActivityDate: currentData.studyData?.lastActivityDate || null,
-        };
+        updates['studyData.overallProgress'] = 0;
+        updates['studyData.subjects'] = [];
+        updates['studyData.weeklyStudyHours'] = initialWeeklyHours;
+        updates['studyData.lastActivityDate'] = null;
+        updates['studyData.pastQuizzes'] = [];
+        needsUpdate = true;
+    } else if (!currentData.studyData.pastQuizzes) {
+        updates['studyData.pastQuizzes'] = [];
         needsUpdate = true;
     }
+
     if (currentData.plan === null) {
         updates.plan = "free"; // Default plan for existing users without a plan
         updates.planSelectedAt = serverTimestamp();
         needsUpdate = true;
     }
+
 
     if (needsUpdate) {
         try {
@@ -94,13 +118,15 @@ export async function createUserProfileDocument(user: User): Promise<void> {
   }
 }
 
+// This function is kept for structural completeness but with current logic,
+// plan is auto-set to 'free' upon profile creation/update.
 export async function setUserPlan(uid: string, plan: "free" | "paid"): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", uid);
   try {
     await updateDoc(userProfileRef, { plan, planSelectedAt: serverTimestamp() });
   } catch (error) {
     console.error("Error setting user plan:", error);
-    throw error; // Re-throw to be caught by caller
+    throw error;
   }
 }
 
@@ -110,29 +136,38 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     const docSnap = await getDoc(userProfileRef);
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfile;
-      // Ensure studyData and plan are present, initialize if not (for older profiles)
-      if (!profile.studyData || profile.plan === null) {
+      
+      // Ensure studyData, pastQuizzes, and plan are present, initialize if not (for older profiles)
+      if (!profile.studyData || !profile.studyData.pastQuizzes || profile.plan === null) {
         const initialWeeklyHours: WeeklyHours[] = [
           { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
           { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
         ];
-        const updates: Partial<UserProfile> = {};
-        if(!profile.studyData) {
+        const updates: any = {}; // Use 'any' for flexibility
+        let needsUpdate = false;
+
+        if (!profile.studyData) {
             updates.studyData = {
                 overallProgress: 0,
                 subjects: [],
                 weeklyStudyHours: initialWeeklyHours,
-                lastActivityDate: undefined,
+                lastActivityDate: null,
+                pastQuizzes: [],
             };
+            needsUpdate = true;
+        } else if (!profile.studyData.pastQuizzes) {
+             updates['studyData.pastQuizzes'] = [];
+             needsUpdate = true;
         }
-        if(profile.plan === null) {
+        
+        if (profile.plan === null) {
             updates.plan = "free";
             updates.planSelectedAt = serverTimestamp();
+            needsUpdate = true;
         }
-        // Apply updates if any are needed
-        if (Object.keys(updates).length > 0) {
+        
+        if (needsUpdate) {
             await updateDoc(userProfileRef, updates);
-            // Re-fetch the updated profile
             const updatedDocSnap = await getDoc(userProfileRef);
             if (updatedDocSnap.exists()) {
                  return updatedDocSnap.data() as UserProfile;
@@ -149,7 +184,6 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 
-// Placeholder function - actual implementation would involve more logic
 export async function updateUserOverallProgress(userId: string, progress: number): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", userId);
   try {
@@ -162,7 +196,6 @@ export async function updateUserOverallProgress(userId: string, progress: number
   }
 }
 
-// Placeholder function
 export async function updateSubjectProgress(userId: string, subjectName: string, newProgress: number): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", userId);
   try {
@@ -190,7 +223,6 @@ export async function updateSubjectProgress(userId: string, subjectName: string,
   }
 }
 
-// Placeholder function
 export async function logStudyHours(userId: string, day: string, hours: number): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", userId);
    try {
@@ -201,7 +233,6 @@ export async function logStudyHours(userId: string, day: string, hours: number):
       if (dayIndex > -1) {
         newWeeklyHours[dayIndex] = { ...newWeeklyHours[dayIndex], hours: newWeeklyHours[dayIndex].hours + hours };
       } else {
-        // This case should ideally not happen if weeklyStudyHours is initialized for all days
         newWeeklyHours.push({ day, hours });
       }
        await updateDoc(userProfileRef, {
@@ -214,3 +245,52 @@ export async function logStudyHours(userId: string, day: string, hours: number):
   }
 }
 
+export async function addPastQuiz(userId: string, quizData: PastQuiz): Promise<void> {
+  const userProfileRef = doc(db, "userProfiles", userId);
+  try {
+    // Add the new quiz to the beginning of the array for chronological display (newest first)
+    await updateDoc(userProfileRef, {
+      "studyData.pastQuizzes": arrayUnion(quizData) // Note: arrayUnion might not be ideal if quizzes can be re-attempted with same ID.
+                                             // For now, assuming quizData.id is unique per attempt.
+                                             // A more robust approach for adding and ensuring order might be to fetch, prepend, and set.
+                                             // However, arrayUnion is simpler if order isn't strictly newest-first or if IDs are always unique.
+                                             // Let's refine this: fetch, prepend, then update.
+    });
+
+    // Refined approach for prepending:
+    const userProfile = await getUserProfile(userId);
+    if (userProfile && userProfile.studyData) {
+        const updatedQuizzes = [quizData, ...(userProfile.studyData.pastQuizzes || [])];
+        await updateDoc(userProfileRef, {
+            "studyData.pastQuizzes": updatedQuizzes.slice(0, 50), // Keep last 50 quizzes for performance
+            "studyData.lastActivityDate": serverTimestamp(),
+        });
+    }
+
+  } catch (error) {
+    console.error("Error adding past quiz:", error);
+    throw error;
+  }
+}
+
+export async function updatePastQuizReflection(userId: string, quizId: string, reflection: string): Promise<void> {
+  const userProfileRef = doc(db, "userProfiles", userId);
+  try {
+    const userProfile = await getUserProfile(userId);
+    if (userProfile && userProfile.studyData && userProfile.studyData.pastQuizzes) {
+      const updatedQuizzes = userProfile.studyData.pastQuizzes.map(quiz => {
+        if (quiz.id === quizId) {
+          return { ...quiz, aiReflection: reflection };
+        }
+        return quiz;
+      });
+      await updateDoc(userProfileRef, {
+        "studyData.pastQuizzes": updatedQuizzes,
+        "studyData.lastActivityDate": serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.error(`Error updating reflection for quiz ${quizId}:`, error);
+    throw error;
+  }
+}

@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import { generateInteractiveQuiz, type GenerateInteractiveQuizOutput } from "@/ai/flows/generate-interactive-quiz";
 import { fileToDataUri } from "@/lib/file-utils";
 import { Loader2, FilePlus, Zap, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { addPastQuiz, type PastQuiz, type PastQuizQuestionDetail } from "@/lib/user-service";
+import { Timestamp } from "firebase/firestore";
+
 
 type QuizQuestion = GenerateInteractiveQuizOutput["questions"][0];
 
@@ -20,10 +25,12 @@ export default function QuizzesPage() {
   const [quiz, setQuiz] = useState<GenerateInteractiveQuizOutput | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [userAnswers, setUserAnswers] = useState<string[]>([]);
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user, refreshUserProfile } = useAuth();
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -43,6 +50,7 @@ export default function QuizzesPage() {
         const dataUri = await fileToDataUri(file);
         setPdfDataUri(dataUri);
         setQuiz(null); // Reset quiz if new file is uploaded
+        setUserAnswers([]);
       } catch (error) {
         toast({
           title: "Error Reading File",
@@ -77,11 +85,13 @@ export default function QuizzesPage() {
     setCurrentQuestionIndex(0);
     setScore(0);
     setShowFeedback(false);
+    setUserAnswers([]);
 
     try {
       const result = await generateInteractiveQuiz({ pdfDataUri, numberOfQuestions });
       if (result.questions && result.questions.length > 0) {
         setQuiz(result);
+        setUserAnswers(new Array(result.questions.length).fill("")); // Initialize userAnswers
         toast({
           title: "Quiz Generated",
           description: `Successfully created a ${result.questions.length}-question quiz.`,
@@ -107,6 +117,11 @@ export default function QuizzesPage() {
 
   const handleAnswerSubmit = () => {
     if (!selectedAnswer || !quiz) return;
+    
+    const updatedAnswers = [...userAnswers];
+    updatedAnswers[currentQuestionIndex] = selectedAnswer;
+    setUserAnswers(updatedAnswers);
+
     const currentQuestion = quiz.questions[currentQuestionIndex];
     if (selectedAnswer === currentQuestion.answer) {
       setScore(score + 1);
@@ -114,9 +129,51 @@ export default function QuizzesPage() {
     setShowFeedback(true);
   };
 
-  const handleNextQuestion = () => {
+  const saveQuizResults = async () => {
+    if (!user || !quiz || !pdfFile) return;
+
+    const questionsDetails: PastQuizQuestionDetail[] = quiz.questions.map((q, index) => ({
+        questionText: q.question,
+        userAnswer: userAnswers[index] || "Not answered", // Ensure there's a value
+        correctAnswer: q.answer,
+        options: q.options,
+        isCorrect: userAnswers[index] === q.answer,
+    }));
+
+    const pastQuizData: PastQuiz = {
+        id: `${new Date().toISOString()}-${Math.random().toString(36).substring(2, 9)}`, // Unique ID
+        quizName: pdfFile.name.replace('.pdf', '') || "Untitled Quiz",
+        dateAttempted: Timestamp.now(),
+        score: score,
+        totalQuestions: quiz.questions.length,
+        questions: questionsDetails,
+    };
+
+    try {
+        await addPastQuiz(user.uid, pastQuizData);
+        await refreshUserProfile(); // Refresh profile to include the new quiz
+        toast({
+            title: "Quiz Saved",
+            description: "Your quiz results have been saved to your reflections.",
+        });
+    } catch (error) {
+        console.error("Error saving quiz result:", error);
+        toast({
+            title: "Error Saving Quiz",
+            description: "Could not save your quiz results.",
+            variant: "destructive",
+        });
+    }
+  };
+
+
+  const handleNextQuestion = async () => {
     setShowFeedback(false);
     setSelectedAnswer(null);
+    if (quiz && currentQuestionIndex === quiz.questions.length - 1) {
+      // This was the last question, save results
+      await saveQuizResults();
+    }
     setCurrentQuestionIndex(currentQuestionIndex + 1);
   };
 
@@ -204,7 +261,17 @@ export default function QuizzesPage() {
                   <Card className="bg-secondary/50 text-center p-6">
                     <CardTitle className="text-xl mb-2">Quiz Complete!</CardTitle>
                     <CardDescription className="text-lg">Your score: {score} out of {quiz.questions.length}</CardDescription>
-                    <Button onClick={() => { setQuiz(null); setCurrentQuestionIndex(0); setScore(0); }} className="mt-4">
+                    <Button onClick={async () => { 
+                        if (showFeedback) { // Ensure saveQuizResults is called if it's the last question and feedback is shown
+                           await saveQuizResults();
+                        }
+                        setQuiz(null); 
+                        setCurrentQuestionIndex(0); 
+                        setScore(0); 
+                        setUserAnswers([]);
+                        setShowFeedback(false);
+                        setSelectedAnswer(null);
+                    }} className="mt-4">
                       Try Another Quiz
                     </Button>
                   </Card>
