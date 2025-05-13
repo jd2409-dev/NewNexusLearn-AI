@@ -1,7 +1,7 @@
-
 import type { User } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, type Timestamp, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "@/firebase";
+import type { QuestionType } from '@/ai/flows/generate-interactive-quiz'; // Import QuestionType
 
 export interface SubjectProgress {
   name: string;
@@ -20,6 +20,7 @@ export interface PastQuizQuestionDetail {
   correctAnswer: string;
   options: string[];
   isCorrect: boolean;
+  questionType: QuestionType; // Added
 }
 
 export interface PastQuiz {
@@ -30,9 +31,10 @@ export interface PastQuiz {
   totalQuestions: number;
   questions: PastQuizQuestionDetail[];
   aiReflection?: string;
-  wasTimed?: boolean; // New: Indicates if the quiz was timed
-  timeLimitPerQuestion?: number; // New: Original time limit per question in minutes (if timed)
-  timeLeft?: number; // New: Seconds remaining when quiz ended (if timed)
+  wasTimed?: boolean; 
+  timeLimitPerQuestion?: number; 
+  timeLeft?: number; 
+  difficultyLevel?: 'easy' | 'medium' | 'hard'; // Added
 }
 
 export interface StudyData {
@@ -95,12 +97,18 @@ export async function createUserProfileDocument(user: User): Promise<void> {
         updates['studyData.subjects'] = [];
         updates['studyData.weeklyStudyHours'] = initialWeeklyHours;
         updates['studyData.lastActivityDate'] = null;
-        updates['studyData.pastQuizzes'] = [];
+        updates['studyData.pastQuizzes'] = []; // Ensure pastQuizzes is initialized
         needsUpdate = true;
-    } else if (!currentData.studyData.pastQuizzes) {
-        updates['studyData.pastQuizzes'] = [];
-        needsUpdate = true;
+    } else {
+        if (!currentData.studyData.pastQuizzes) {
+            updates['studyData.pastQuizzes'] = [];
+            needsUpdate = true;
+        }
+        // Ensure existing past quizzes have new fields with defaults if missing (optional migration)
+        // This part can be complex if you need to update existing array items.
+        // For simplicity, new quizzes will have these fields. Old ones might not show them in UI if not present.
     }
+
 
     if (currentData.plan === null) {
         updates.plan = "free"; 
@@ -166,7 +174,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
         
         if (needsUpdate) {
             await updateDoc(userProfileRef, updates);
-            const updatedDocSnap = await getDoc(userProfileRef);
+            const updatedDocSnap = await getDoc(userProfileRef); // Re-fetch after update
             if (updatedDocSnap.exists()) {
                  return updatedDocSnap.data() as UserProfile;
             }
@@ -231,7 +239,8 @@ export async function logStudyHours(userId: string, day: string, hours: number):
       if (dayIndex > -1) {
         newWeeklyHours[dayIndex] = { ...newWeeklyHours[dayIndex], hours: newWeeklyHours[dayIndex].hours + hours };
       } else {
-        newWeeklyHours.push({ day, hours });
+        // This case should ideally not happen if initialWeeklyHours is set up correctly
+        newWeeklyHours.push({ day, hours }); 
       }
        await updateDoc(userProfileRef, {
         "studyData.weeklyStudyHours": newWeeklyHours,
@@ -246,18 +255,34 @@ export async function logStudyHours(userId: string, day: string, hours: number):
 export async function addPastQuiz(userId: string, quizData: PastQuiz): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", userId);
   try {
+    // Fetch the current profile to get the existing pastQuizzes array
     const userProfile = await getUserProfile(userId);
     if (userProfile && userProfile.studyData) {
+        // Prepend new quiz and ensure array exists
         const updatedQuizzes = [quizData, ...(userProfile.studyData.pastQuizzes || [])];
+        
         await updateDoc(userProfileRef, {
-            "studyData.pastQuizzes": updatedQuizzes.slice(0, 50), 
+            "studyData.pastQuizzes": updatedQuizzes.slice(0, 50), // Keep only the latest 50 quizzes
             "studyData.lastActivityDate": serverTimestamp(),
+        });
+    } else if (userProfile) { // studyData might be missing, initialize it with pastQuizzes
+         await updateDoc(userProfileRef, {
+            "studyData.pastQuizzes": [quizData],
+            "studyData.lastActivityDate": serverTimestamp(),
+            // Potentially initialize other studyData fields here if necessary
+            "studyData.overallProgress": userProfile.studyData?.overallProgress || 0,
+            "studyData.subjects": userProfile.studyData?.subjects || [],
+            "studyData.weeklyStudyHours": userProfile.studyData?.weeklyStudyHours || [
+                { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
+                { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
+            ],
         });
     }
 
+
   } catch (error) {
     console.error("Error adding past quiz:", error);
-    throw error;
+    throw error; // Re-throw to be caught by the caller
   }
 }
 
@@ -279,7 +304,7 @@ export async function updatePastQuizReflection(userId: string, quizId: string, r
     }
   } catch (error) {
     console.error(`Error updating reflection for quiz ${quizId}:`, error);
-    throw error;
+    throw error; // Re-throw to be caught by the caller
   }
 }
 

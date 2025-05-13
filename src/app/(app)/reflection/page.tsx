@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,12 +5,20 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, FileClock, Sparkles, CheckCircle2, AlertCircle, Info, Timer } from "lucide-react";
+import { Loader2, FileClock, Sparkles, CheckCircle2, AlertCircle, Info, Timer, BarChartHorizontal, Puzzle } from "lucide-react";
 import type { PastQuiz, PastQuizQuestionDetail } from "@/lib/user-service";
 import { generateQuizReflection, type GenerateQuizReflectionOutput } from "@/ai/flows/generate-quiz-reflection";
 import { updatePastQuizReflection } from "@/lib/user-service";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
+import { Badge } from "@/components/ui/badge"; // Import Badge
+
+const questionTypeLabels: Record<PastQuizQuestionDetail['questionType'], string> = {
+  mcq: "MCQ",
+  trueFalse: "True/False",
+  fillInTheBlanks: "Fill-in-Blanks",
+  shortAnswer: "Short Answer",
+};
 
 export default function ReflectionPage() {
   const { user, userProfile, loading: authLoading, refreshUserProfile } = useAuth();
@@ -37,6 +44,7 @@ export default function ReflectionPage() {
       const result = await generateQuizReflection({
         quizName: quiz.quizName,
         questions: quiz.questions,
+        difficultyLevel: quiz.difficultyLevel, // Pass difficulty
       });
       await updatePastQuizReflection(user.uid, quiz.id, result.reflectionText);
       await refreshUserProfile(); 
@@ -109,7 +117,11 @@ export default function ReflectionPage() {
                 <AccordionItem value={quiz.id} key={quiz.id}>
                   <AccordionTrigger>
                     <div className="flex justify-between w-full items-center pr-2">
-                        <span className="truncate mr-2 font-medium">{quiz.quizName} {quiz.wasTimed && <Timer className="inline-block h-4 w-4 ml-1 text-primary" />}</span>
+                        <span className="truncate mr-2 font-medium">
+                            {quiz.quizName}
+                            {quiz.wasTimed && <Timer className="inline-block h-4 w-4 ml-1 text-primary" title="Timed Quiz"/>}
+                            {quiz.difficultyLevel && <Badge variant="outline" className="ml-2 capitalize text-xs">{quiz.difficultyLevel}</Badge>}
+                        </span>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 text-xs sm:text-sm text-muted-foreground text-right">
                             <span>{formatDate(quiz.dateAttempted)}</span>
                             <span>Score: {quiz.score}/{quiz.totalQuestions}</span>
@@ -118,19 +130,36 @@ export default function ReflectionPage() {
                   </AccordionTrigger>
                   <AccordionContent className="space-y-4 p-4 bg-secondary/30 rounded-b-md">
                     {quiz.wasTimed && (
-                      <div className="text-sm text-muted-foreground mb-2">
-                        This was a timed quiz.
-                        {quiz.timeLimitPerQuestion && <span> Time limit per question: {quiz.timeLimitPerQuestion} min(s).</span>}
-                        {quiz.timeLeft !== undefined && <span> Time left at submission: {formatSecondsToMMSS(quiz.timeLeft)}.</span>}
+                      <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                        <Timer className="h-4 w-4 text-primary"/>
+                        <span>Timed Quiz.</span>
+                        {quiz.timeLimitPerQuestion && <span>Limit/Q: {quiz.timeLimitPerQuestion} min(s).</span>}
+                        {quiz.timeLeft !== undefined && <span>Time Left: {formatSecondsToMMSS(quiz.timeLeft)}.</span>}
+                      </div>
+                    )}
+                     {quiz.difficultyLevel && (
+                      <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                        <BarChartHorizontal className="h-4 w-4 text-primary"/>
+                        <span>Difficulty: <span className="capitalize font-medium">{quiz.difficultyLevel}</span>.</span>
                       </div>
                     )}
                     <div>
                       <h4 className="font-semibold mb-2 text-lg">Quiz Details:</h4>
                       {quiz.questions.map((q, index) => (
                         <Card key={index} className={`mb-3 p-4 ${q.isCorrect ? 'border-green-500/50 bg-green-500/5' : 'border-red-500/50 bg-red-500/5'}`}>
-                          <p className="font-medium mb-1">Q{index + 1}: {q.questionText}</p>
-                          <p className="text-sm">Your answer: <span className={q.isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{q.userAnswer}</span></p>
+                            <div className="flex justify-between items-start mb-1">
+                                <p className="font-medium">Q{index + 1}: {q.questionText}</p>
+                                <Badge variant="secondary" className="text-xs ml-2 shrink-0">
+                                    <Puzzle className="h-3 w-3 mr-1"/>{questionTypeLabels[q.questionType] || q.questionType}
+                                </Badge>
+                            </div>
+                          <p className="text-sm">Your answer: <span className={q.isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{q.userAnswer || "Not Answered"}</span></p>
                           {!q.isCorrect && <p className="text-sm">Correct answer: {q.correctAnswer}</p>}
+                          {q.questionType === "mcq" && q.options && q.options.length > 0 && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                                Options: {q.options.join(" | ")}
+                            </div>
+                          )}
                           <div className="mt-1">
                             {q.isCorrect ? 
                                 <CheckCircle2 className="h-5 w-5 text-green-500 inline-block mr-1" /> :

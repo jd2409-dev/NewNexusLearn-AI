@@ -2,15 +2,19 @@
 'use server';
 
 /**
- * @fileOverview Generates interactive quiz questions from uploaded PDF content.
+ * @fileOverview Generates interactive quiz questions from uploaded PDF content,
+ * supporting different difficulty levels and question types.
  *
- * - generateInteractiveQuiz - A function that generates quiz questions from PDF content.
- * - GenerateInteractiveQuizInput - The input type for the generateInteractiveQuiz function.
- * - GenerateInteractiveQuizOutput - The return type for the generateInteractiveQuiz function.
+ * - generateInteractiveQuiz - A function that generates quiz questions.
+ * - GenerateInteractiveQuizInput - The input type.
+ * - GenerateInteractiveQuizOutput - The return type.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+const QuestionTypeEnum = z.enum(['mcq', 'trueFalse', 'fillInTheBlanks', 'shortAnswer']);
+export type QuestionType = z.infer<typeof QuestionTypeEnum>;
 
 const GenerateInteractiveQuizInputSchema = z.object({
   pdfDataUri: z
@@ -21,19 +25,28 @@ const GenerateInteractiveQuizInputSchema = z.object({
   numberOfQuestions: z
     .number()
     .default(5)
+    .min(1)
+    .max(20)
     .describe('The number of quiz questions to generate.'),
+  difficultyLevel: z.enum(['easy', 'medium', 'hard']).default('medium').optional()
+    .describe('The desired difficulty level of the quiz.'),
+  questionTypes: z.array(QuestionTypeEnum).default(['mcq']).optional()
+    .describe('The desired types of questions. If not provided, AI will default to MCQs or a mix.'),
 });
 
 export type GenerateInteractiveQuizInput = z.infer<typeof GenerateInteractiveQuizInputSchema>;
 
+const QuizQuestionSchema = z.object({
+  type: QuestionTypeEnum.describe('The type of the question.'),
+  question: z.string().describe('The quiz question. For fillInTheBlanks, use "____" or a similar placeholder for the blank space.'),
+  answer: z.string().describe('The correct answer. For trueFalse, this will be "True" or "False". For fillInTheBlanks, this is the word/phrase for the blank.'),
+  options: z.array(z.string()).optional().describe('Possible answer options. Required for mcq (typically 4 options). For trueFalse, this should be ["True", "False"]. Not used for fillInTheBlanks or shortAnswer.'),
+});
+
+export type QuizQuestion = z.infer<typeof QuizQuestionSchema>;
+
 const GenerateInteractiveQuizOutputSchema = z.object({
-  questions: z.array(
-    z.object({
-      question: z.string().describe('The quiz question.'),
-      answer: z.string().describe('The correct answer to the question.'),
-      options: z.array(z.string()).describe('The possible answer options.'),
-    })
-  ),
+  questions: z.array(QuizQuestionSchema),
 });
 
 export type GenerateInteractiveQuizOutput = z.infer<typeof GenerateInteractiveQuizOutputSchema>;
@@ -49,28 +62,56 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert educator specializing in creating quizzes.
 
   You will generate {{numberOfQuestions}} quiz questions based on the content of the following PDF document.
+  The difficulty level for the questions should be: {{difficultyLevel}}.
+  The types of questions to generate should be from the following list: {{#if questionTypes}}{{#each questionTypes}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{else}}mcq{{/if}}.
+  If multiple question types are specified, try to include a mix. If only one is specified, generate all questions of that type.
 
   The questions should test the student's understanding of the material.
 
   PDF Content: {{media url=pdfDataUri}}
 
-  The output should be a JSON object with a 'questions' field. Each question should have a 'question', 'answer', and 'options' field. There must be 4 options, one of which must be the correct answer.
-  The options should be plausible, but only one should be correct.
-  Here's an example of the desired JSON format:
+  The output must be a JSON object with a 'questions' field. Each question object in the array must have:
+  1.  "type": One of "mcq", "trueFalse", "fillInTheBlanks", "shortAnswer".
+  2.  "question": The question text. For "fillInTheBlanks", use a placeholder like "____" for the blank.
+  3.  "answer": The correct answer.
+      - For "mcq", "fillInTheBlanks", "shortAnswer": The correct string answer.
+      - For "trueFalse": Must be "True" or "False".
+  4.  "options": An array of strings.
+      - For "mcq": Provide 4 plausible options, one of which is the correct answer.
+      - For "trueFalse": This field MUST be ["True", "False"].
+      - For "fillInTheBlanks" and "shortAnswer": This field can be omitted or be an empty array.
+
+  Example JSON output format:
   {
     "questions": [
       {
+        "type": "mcq",
         "question": "What is the capital of France?",
-        "answer": "Paris",
-        "options": ["Paris", "London", "Berlin", "Rome"]
+        "options": ["Paris", "London", "Berlin", "Rome"],
+        "answer": "Paris"
       },
       {
-        "question": "What is the highest mountain in the world?",
-        "answer": "Mount Everest",
-        "options": ["Mount Everest", "K2", "Kangchenjunga", "Lhotse"]
+        "type": "trueFalse",
+        "question": "The Earth is flat.",
+        "options": ["True", "False"],
+        "answer": "False"
+      },
+      {
+        "type": "fillInTheBlanks",
+        "question": "The chemical symbol for water is ____.",
+        "answer": "H2O"
+      },
+      {
+        "type": "shortAnswer",
+        "question": "Briefly explain the process of photosynthesis.",
+        "answer": "Photosynthesis is the process used by plants, algae, and some bacteria to convert light energy into chemical energy, through a process that uses sunlight, water, and carbon dioxide."
       }
     ]
-  }`,
+  }
+  Ensure the number of questions generated matches the requested {{numberOfQuestions}}.
+  For MCQs, ensure there are exactly 4 options.
+  For True/False, ensure options are ["True", "False"].
+  `,
 });
 
 const generateInteractiveQuizFlow = ai.defineFlow(
@@ -79,8 +120,26 @@ const generateInteractiveQuizFlow = ai.defineFlow(
     inputSchema: GenerateInteractiveQuizInputSchema,
     outputSchema: GenerateInteractiveQuizOutputSchema,
   },
-  async input => {
+  async (input) => {
+    // Ensure default questionTypes if empty array is somehow passed
+    if (!input.questionTypes || input.questionTypes.length === 0) {
+      input.questionTypes = ['mcq'];
+    }
     const {output} = await prompt(input);
+    // Validate output, especially for MCQs and True/False options
+    if (output?.questions) {
+      output.questions.forEach(q => {
+        if (q.type === 'mcq' && (!q.options || q.options.length !== 4)) {
+          // Attempt to fix or log error. For now, we'll rely on the model adhering to prompt.
+          // console.warn("MCQ question does not have 4 options:", q);
+        }
+        if (q.type === 'trueFalse' && (!q.options || q.options.length !== 2 || !q.options.includes("True") || !q.options.includes("False"))) {
+          // console.warn("True/False question does not have correct options:", q);
+          q.options = ["True", "False"]; // Force correct options
+        }
+      });
+    }
     return output!;
   }
 );
+

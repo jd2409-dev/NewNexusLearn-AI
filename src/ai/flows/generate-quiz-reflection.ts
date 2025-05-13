@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Generates AI-powered reflections and advice based on past quiz performance.
@@ -10,7 +9,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { PastQuizQuestionDetail } from '@/lib/user-service'; // Assuming type is exported
+import type { PastQuizQuestionDetail as PastQuizQuestionDetailType } from '@/lib/user-service'; // Assuming type is exported
+import type { QuestionType } from '@/ai/flows/generate-interactive-quiz';
+
 
 const PastQuizQuestionDetailSchema = z.object({
   questionText: z.string(),
@@ -18,11 +19,13 @@ const PastQuizQuestionDetailSchema = z.object({
   correctAnswer: z.string(),
   options: z.array(z.string()),
   isCorrect: z.boolean(),
+  questionType: z.custom<QuestionType>().describe('The type of the question (e.g., mcq, trueFalse).'),
 });
 
 const GenerateQuizReflectionInputSchema = z.object({
   quizName: z.string().describe('The name or topic of the quiz.'),
-  questions: z.array(PastQuizQuestionDetailSchema).describe('An array of questions from the quiz, including user answers and correctness.'),
+  questions: z.array(PastQuizQuestionDetailSchema).describe('An array of questions from the quiz, including user answers, correctness and type.'),
+  difficultyLevel: z.enum(['easy', 'medium', 'hard']).optional().describe('The difficulty level of the quiz.'),
 });
 export type GenerateQuizReflectionInput = z.infer<typeof GenerateQuizReflectionInputSchema>;
 
@@ -37,7 +40,7 @@ export async function generateQuizReflection(input: GenerateQuizReflectionInput)
 }
 
 // Helper to format only incorrect questions for the prompt
-const formatIncorrectQuestions = (questions: PastQuizQuestionDetail[]): string => {
+const formatIncorrectQuestions = (questions: PastQuizQuestionDetailType[]): string => {
   let incorrectFormatted = "";
   const incorrectQuestions = questions.filter(q => !q.isCorrect);
 
@@ -46,7 +49,7 @@ const formatIncorrectQuestions = (questions: PastQuizQuestionDetail[]): string =
   }
 
   incorrectQuestions.forEach(q => {
-    incorrectFormatted += `Question: ${q.questionText}\nYour Answer: ${q.userAnswer}\nCorrect Answer: ${q.correctAnswer}\n\n`;
+    incorrectFormatted += `Type: ${q.questionType}\nQuestion: ${q.questionText}\nYour Answer: ${q.userAnswer}\nCorrect Answer: ${q.correctAnswer}\n\n`;
   });
   return incorrectFormatted.trim();
 };
@@ -56,14 +59,14 @@ const prompt = ai.definePrompt({
   name: 'generateQuizReflectionPrompt',
   input: {schema: GenerateQuizReflectionInputSchema},
   output: {schema: GenerateQuizReflectionOutputSchema},
-  prompt: `You are an expert AI study coach. A student has completed a quiz titled "{{quizName}}".
+  prompt: `You are an expert AI study coach. A student has completed a quiz titled "{{quizName}}"{{#if difficultyLevel}} with a difficulty of "{{difficultyLevel}}"{{/if}}.
 Please analyze their performance on the questions they answered incorrectly and provide constructive feedback.
 
 Here are the details of the questions the student got wrong:
 {{{formatIncorrectQuestions questions}}}
 
 Based on these incorrect answers:
-1. Identify any patterns in the mistakes (e.g., misunderstanding of specific concepts, calculation errors, misinterpretation of questions).
+1. Identify any patterns in the mistakes (e.g., misunderstanding of specific concepts, calculation errors, misinterpretation of questions, issues with certain question types).
 2. Provide actionable advice and strategies on how to avoid these types of errors in the future.
 3. Suggest specific areas or topics they might need to review based on their performance.
 4. Keep the tone encouraging, supportive, and helpful. Focus on learning and improvement.
@@ -71,8 +74,8 @@ Based on these incorrect answers:
 Please structure your response to include a general reflection and a list of identified weaknesses/topics to review if applicable.
 Example output format:
 {
-  "reflectionText": "Great effort on the '{{quizName}}' quiz! It's a good opportunity to review a few areas. I noticed a pattern in [describe pattern, e.g., confusing term A with term B]. To improve, try [specific strategy, e.g., creating flashcards for these terms or working through more examples of concept X]. For future quizzes, remember to [general advice, e.g., read each question carefully before answering]. Keep up the hard work!",
-  "identifiedWeaknesses": ["Concept X", "Term A vs Term B"]
+  "reflectionText": "Great effort on the '{{quizName}}' quiz! It's a good opportunity to review a few areas. I noticed a pattern in [describe pattern, e.g., confusing term A with term B, or struggling with 'fillInTheBlanks' questions related to definitions]. To improve, try [specific strategy, e.g., creating flashcards for these terms or working through more examples of concept X]. For future quizzes, remember to [general advice, e.g., read each question carefully before answering]. Keep up the hard work!",
+  "identifiedWeaknesses": ["Concept X", "Term A vs Term B", "Understanding definitions for fill-in-the-blanks"]
 }
 If all questions were answered correctly, the reflectionText should congratulate the student and state that no weaknesses were identified.
 `,
@@ -90,9 +93,6 @@ const generateQuizReflectionFlow = ai.defineFlow(
   async (input) => {
     const { output } = await prompt(input);
     if (!output) {
-        // Handle cases where the AI might not return a structured output as expected,
-        // though Zod validation should catch this.
-        // This flow is robust enough that if all questions are correct, the prompt handles it.
         return {
             reflectionText: "Could not generate reflection at this time. Please try again later.",
             identifiedWeaknesses: []
@@ -101,3 +101,4 @@ const generateQuizReflectionFlow = ai.defineFlow(
     return output;
   }
 );
+

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, type FormEvent, useEffect, useRef } from "react";
@@ -8,24 +7,43 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { generateInteractiveQuiz, type GenerateInteractiveQuizOutput } from "@/ai/flows/generate-interactive-quiz";
+import { generateInteractiveQuiz, type GenerateInteractiveQuizOutput, type QuizQuestion, type QuestionType } from "@/ai/flows/generate-interactive-quiz";
 import { fileToDataUri } from "@/lib/file-utils";
-import { Loader2, FilePlus, Zap, AlertCircle, CheckCircle2, Clock, Timer } from "lucide-react";
+import { Loader2, FilePlus, Zap, AlertCircle, CheckCircle2, Clock, Timer, StopCircle, ListChecks, ShieldQuestion } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { addPastQuiz, type PastQuiz, type PastQuizQuestionDetail } from "@/lib/user-service";
 import { Timestamp } from "firebase/firestore";
+import Link from 'next/link';
 
+const difficultyLevels = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+] as const;
 
-type QuizQuestion = GenerateInteractiveQuizOutput["questions"][0];
+const allQuestionTypes: { id: QuestionType; label: string }[] = [
+  { id: "mcq", label: "Multiple Choice (MCQ)" },
+  { id: "trueFalse", label: "True/False" },
+  { id: "fillInTheBlanks", label: "Fill in the Blanks" },
+  { id: "shortAnswer", label: "Short Answer (Q&A)" },
+];
+
 
 export default function QuizzesPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDataUri, setPdfDataUri] = useState<string | null>(null);
   const [numberOfQuestions, setNumberOfQuestions] = useState<number>(5);
+  const [difficultyLevel, setDifficultyLevel] = useState<GenerateInteractiveQuizInput['difficultyLevel']>('medium');
+  const [selectedQuestionTypes, setSelectedQuestionTypes] = useState<QuestionType[]>(['mcq']);
+  
   const [quiz, setQuiz] = useState<GenerateInteractiveQuizOutput | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedRadioAnswer, setSelectedRadioAnswer] = useState<string | null>(null);
+  const [textInputAnswer, setTextInputAnswer] = useState<string>(""); // For fill-in-the-blanks and short-answer
+
   const [userAnswers, setUserAnswers] = useState<string[]>([]);
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
@@ -37,7 +55,7 @@ export default function QuizzesPage() {
   const [isTimedModeEnabled, setIsTimedModeEnabled] = useState<boolean>(false);
   const [timePerQuestion, setTimePerQuestion] = useState<number>(2); // minutes
   const [quizTimeLeft, setQuizTimeLeft] = useState<number | null>(null); // seconds
-  const [isQuizActive, setIsQuizActive] = useState<boolean>(false); // To control quiz flow and timer
+  const [isQuizActive, setIsQuizActive] = useState<boolean>(false); 
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
 
@@ -55,8 +73,6 @@ export default function QuizzesPage() {
         });
       }, 1000);
     } else if (quizTimeLeft === 0 && isQuizActive) {
-        // This case should be handled by the interval clearing itself,
-        // but as a safeguard if handleTimeUp wasn't called.
         handleTimeUp();
     }
     return () => {
@@ -70,76 +86,66 @@ export default function QuizzesPage() {
     const file = event.target.files?.[0];
     if (file) {
       if (file.type !== "application/pdf") {
-        toast({
-          title: "Invalid File Type",
-          description: "Please upload a PDF file.",
-          variant: "destructive",
-        });
-        setPdfFile(null);
-        setPdfDataUri(null);
-        return;
+        toast({ title: "Invalid File Type", description: "Please upload a PDF file.", variant: "destructive" });
+        setPdfFile(null); setPdfDataUri(null); return;
       }
       setPdfFile(file);
       try {
         const dataUri = await fileToDataUri(file);
         setPdfDataUri(dataUri);
-        resetQuizState();
+        resetQuizState(false); // Don't reset form inputs
       } catch (error) {
-        toast({
-          title: "Error Reading File",
-          description: "Could not read the PDF file.",
-          variant: "destructive",
-        });
+        toast({ title: "Error Reading File", description: "Could not read the PDF file.", variant: "destructive" });
       }
     }
   };
 
-  const resetQuizState = () => {
+  const resetQuizState = (resetFormInputs: boolean = true) => {
     setQuiz(null);
     setCurrentQuestionIndex(0);
-    setSelectedAnswer(null);
+    setSelectedRadioAnswer(null);
+    setTextInputAnswer("");
     setUserAnswers([]);
     setShowFeedback(false);
     setScore(0);
     setIsQuizActive(false);
     setQuizTimeLeft(null);
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+    if (resetFormInputs) {
+        setPdfFile(null);
+        setPdfDataUri(null);
+        // setNumberOfQuestions(5); // Keep user's preference
+        // setDifficultyLevel('medium'); // Keep user's preference
+        // setSelectedQuestionTypes(['mcq']); // Keep user's preference
     }
   };
 
   const handleGenerateQuiz = async (e: FormEvent) => {
     e.preventDefault();
     if (!pdfDataUri) {
-      toast({
-        title: "Missing PDF",
-        description: "Please upload a PDF to generate a quiz.",
-        variant: "destructive",
-      });
-      return;
+      toast({ title: "Missing PDF", description: "Please upload a PDF to generate a quiz.", variant: "destructive" }); return;
     }
     if (numberOfQuestions <= 0) {
-        toast({
-            title: "Invalid Number",
-            description: "Number of questions must be greater than 0.",
-            variant: "destructive",
-        });
-        return;
+      toast({ title: "Invalid Number", description: "Number of questions must be greater than 0.", variant: "destructive" }); return;
+    }
+    if (selectedQuestionTypes.length === 0) {
+      toast({ title: "No Question Types", description: "Please select at least one question type.", variant: "destructive" }); return;
     }
     if (isTimedModeEnabled && timePerQuestion <=0) {
-        toast({
-            title: "Invalid Duration",
-            description: "Time per question must be greater than 0 for timed mode.",
-            variant: "destructive",
-        });
-        return;
+      toast({ title: "Invalid Duration", description: "Time per question must be greater than 0 for timed mode.", variant: "destructive" }); return;
     }
 
     setIsLoading(true);
-    resetQuizState();
+    resetQuizState(false); // Don't reset form inputs, only quiz active state
 
     try {
-      const result = await generateInteractiveQuiz({ pdfDataUri, numberOfQuestions });
+      const result = await generateInteractiveQuiz({ 
+        pdfDataUri, 
+        numberOfQuestions,
+        difficultyLevel,
+        questionTypes: selectedQuestionTypes.length > 0 ? selectedQuestionTypes : undefined // Pass undefined if empty to use default in flow
+      });
       if (result.questions && result.questions.length > 0) {
         setQuiz(result);
         setUserAnswers(new Array(result.questions.length).fill(""));
@@ -148,67 +154,77 @@ export default function QuizzesPage() {
           const totalDurationSeconds = result.questions.length * timePerQuestion * 60;
           setQuizTimeLeft(totalDurationSeconds);
         }
-        toast({
-          title: "Quiz Generated",
-          description: `Successfully created a ${result.questions.length}-question quiz.`,
-        });
+        toast({ title: "Quiz Generated", description: `Successfully created a ${result.questions.length}-question quiz.` });
       } else {
         setIsQuizActive(false);
-        toast({
-          title: "Quiz Generation Failed",
-          description: "AI could not generate questions from this PDF. Try another one.",
-          variant: "destructive",
-        });
+        toast({ title: "Quiz Generation Failed", description: "AI could not generate questions from this PDF. Try another one or adjust parameters.", variant: "destructive" });
       }
     } catch (error) {
       setIsQuizActive(false);
       console.error("Quiz generation error:", error);
-      toast({
-        title: "Quiz Generation Failed",
-        description: (error as Error).message || "Could not generate quiz.",
-        variant: "destructive",
-      });
+      toast({ title: "Quiz Generation Failed", description: (error as Error).message || "Could not generate quiz.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
+  
+  const currentQuestion: QuizQuestion | undefined = quiz?.questions[currentQuestionIndex];
 
   const handleAnswerSubmit = () => {
-    if (!selectedAnswer || !quiz) return;
+    if (!quiz || !currentQuestion) return;
     
+    let currentAnswer = "";
+    if (currentQuestion.type === 'mcq' || currentQuestion.type === 'trueFalse') {
+      if (!selectedRadioAnswer) {
+        toast({ title: "No Answer Selected", description: "Please select an answer.", variant: "default" });
+        return;
+      }
+      currentAnswer = selectedRadioAnswer;
+    } else if (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') {
+      if (!textInputAnswer.trim()) {
+         toast({ title: "No Answer Provided", description: "Please enter your answer.", variant: "default" });
+         return;
+      }
+      currentAnswer = textInputAnswer.trim();
+    }
+
     const updatedAnswers = [...userAnswers];
-    updatedAnswers[currentQuestionIndex] = selectedAnswer;
+    updatedAnswers[currentQuestionIndex] = currentAnswer;
     setUserAnswers(updatedAnswers);
 
-    const currentQuestion = quiz.questions[currentQuestionIndex];
-    if (selectedAnswer === currentQuestion.answer) {
+    let isCorrect = false;
+    if (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') {
+        isCorrect = currentAnswer.toLowerCase() === currentQuestion.answer.toLowerCase();
+    } else { // mcq or trueFalse
+        isCorrect = currentAnswer === currentQuestion.answer;
+    }
+
+    if (isCorrect) {
       setScore(score + 1);
     }
     setShowFeedback(true);
 
-    // If it's the last question and feedback is shown, stop the timer
     if (currentQuestionIndex === quiz.questions.length - 1) {
-        setIsQuizActive(false);
-        if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-        }
+        setIsQuizActive(false); // Stop timer for last question upon submission
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     }
   };
 
-  const saveQuizResults = async (reasonForSaving: "completed" | "time_up" = "completed") => {
+  const saveQuizResults = async (reasonForSaving: "completed" | "time_up" | "ended_early" = "completed") => {
     if (!user || !quiz || !pdfFile) return;
 
     const questionsDetails: PastQuizQuestionDetail[] = quiz.questions.map((q, index) => ({
         questionText: q.question,
-        userAnswer: userAnswers[index] || (reasonForSaving === "time_up" ? "Not Answered (Time Up)" : "Not Answered"),
+        userAnswer: userAnswers[index] || (reasonForSaving === "time_up" ? "Not Answered (Time Up)" : reasonForSaving === "ended_early" ? "Not Answered (Ended Early)" : "Not Answered"),
         correctAnswer: q.answer,
-        options: q.options,
-        isCorrect: userAnswers[index] === q.answer,
+        options: q.options || [],
+        isCorrect: userAnswers[index]?.toLowerCase() === q.answer.toLowerCase(), // Simplified, might need adjustment for shortAnswer
+        questionType: q.type,
     }));
 
     const pastQuizData: PastQuiz = {
-        id: `${new Date().toISOString()}-${Math.random().toString(36).substring(2, 9)}`, // Unique ID
-        quizName: `${pdfFile.name.replace('.pdf', '')}${isTimedModeEnabled ? ' (Timed)' : ''}` || "Untitled Quiz",
+        id: `${new Date().toISOString()}-${Math.random().toString(36).substring(2, 9)}`,
+        quizName: `${pdfFile.name.replace('.pdf', '')} (${difficultyLevel}, ${selectedQuestionTypes.join('/')})${isTimedModeEnabled ? ' (Timed)' : ''}` || "Untitled Quiz",
         dateAttempted: Timestamp.now(),
         score: score,
         totalQuestions: quiz.questions.length,
@@ -216,31 +232,24 @@ export default function QuizzesPage() {
         wasTimed: isTimedModeEnabled,
         timeLimitPerQuestion: isTimedModeEnabled ? timePerQuestion : undefined,
         timeLeft: isTimedModeEnabled && quizTimeLeft !== null ? quizTimeLeft : undefined,
+        difficultyLevel: difficultyLevel,
     };
 
     try {
         await addPastQuiz(user.uid, pastQuizData);
         await refreshUserProfile();
-        toast({
-            title: "Quiz Results Saved",
-            description: `Your quiz results for "${pastQuizData.quizName}" have been saved.`,
-        });
+        toast({ title: "Quiz Results Saved", description: `Your quiz results for "${pastQuizData.quizName}" have been saved.` });
     } catch (error) {
         console.error("Error saving quiz result:", error);
-        toast({
-            title: "Error Saving Quiz",
-            description: "Could not save your quiz results.",
-            variant: "destructive",
-        });
+        toast({ title: "Error Saving Quiz", description: "Could not save your quiz results.", variant: "destructive" });
     }
   };
 
   const handleNextQuestion = async () => {
     setShowFeedback(false);
-    setSelectedAnswer(null);
+    setSelectedRadioAnswer(null);
+    setTextInputAnswer(""); 
     if (quiz && currentQuestionIndex === quiz.questions.length - 1) {
-      // This was the last question, results already saved if submitted normally, or will be by time up.
-      // If submitted normally, saveQuizResults called after feedback.
       await saveQuizResults("completed");
       setIsQuizActive(false); // Quiz is over
     }
@@ -248,36 +257,57 @@ export default function QuizzesPage() {
   };
   
   const handleTimeUp = async () => {
-    if (!isQuizActive) return; // Prevent multiple calls
-
+    if (!isQuizActive && quizTimeLeft !== 0) return; // Prevent multiple calls unless time actually ran out
+    
     setIsQuizActive(false);
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-    }
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     setQuizTimeLeft(0);
     
-    // Auto-submit logic:
-    // Fill remaining answers if any (though userAnswers should be updated as they go)
-    // Calculate final score based on answers submitted so far
-    // Show feedback for the current question if one was selected, or just end.
-    
-    if (quiz && !showFeedback) { // If current question wasn't submitted and feedback shown
-        // Potentially mark current question as unanswered due to time up
+    if (quiz && !showFeedback) { 
         const updatedAnswers = [...userAnswers];
-        if (!updatedAnswers[currentQuestionIndex]) {
+        if (!updatedAnswers[currentQuestionIndex] && currentQuestion) { // If current question has not been answered
              updatedAnswers[currentQuestionIndex] = "Not Answered (Time Up)";
              setUserAnswers(updatedAnswers);
         }
     }
     
-    setShowFeedback(true); // Show feedback for the current or last attempted question
+    setShowFeedback(true); 
     await saveQuizResults("time_up");
-    toast({
-        title: "Time's Up!",
-        description: "Your quiz has been automatically submitted.",
-        variant: "default"
-    });
-    // The UI will update to show score and "Try Another Quiz" since quiz is now over.
+    toast({ title: "Time's Up!", description: "Your quiz has been automatically submitted.", variant: "default" });
+  };
+
+  const handleEndTestEarly = async () => {
+    if (!isQuizActive || !quiz) return;
+    setIsQuizActive(false);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    
+    // If current question has an answer typed but not submitted, consider it.
+    // Otherwise, mark unattempted questions.
+    const updatedAnswers = [...userAnswers];
+    if (currentQuestion && !updatedAnswers[currentQuestionIndex]) {
+        const currentVal = (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') ? textInputAnswer : selectedRadioAnswer;
+        if (currentVal && currentVal.trim() !== "") {
+            updatedAnswers[currentQuestionIndex] = currentVal.trim();
+             // Check if this answer is correct for score
+            let isCorrect = false;
+            if (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') {
+                isCorrect = currentVal.trim().toLowerCase() === currentQuestion.answer.toLowerCase();
+            } else {
+                isCorrect = currentVal === currentQuestion.answer;
+            }
+            if(isCorrect) setScore(prevScore => prevScore +1); // Manually adjust score for this one last answer
+        } else {
+            updatedAnswers[currentQuestionIndex] = "Not Answered (Ended Early)";
+        }
+    }
+     for (let i = currentQuestionIndex + 1; i < quiz.questions.length; i++) {
+        updatedAnswers[i] = "Not Answered (Ended Early)";
+    }
+    setUserAnswers(updatedAnswers);
+
+    setShowFeedback(true); // Show feedback for the current or last attempted question
+    await saveQuizResults("ended_early");
+    toast({ title: "Quiz Ended", description: "Your quiz has been submitted.", variant: "default" });
   };
 
 
@@ -288,8 +318,7 @@ export default function QuizzesPage() {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const currentQuestion: QuizQuestion | undefined = quiz?.questions[currentQuestionIndex];
-  const isQuizFinished = quiz && (currentQuestionIndex >= quiz.questions.length || (quizTimeLeft === 0 && isTimedModeEnabled));
+  const isQuizFinished = quiz && (currentQuestionIndex >= quiz.questions.length || (quizTimeLeft === 0 && isTimedModeEnabled && !isQuizActive ));
 
 
   return (
@@ -298,7 +327,7 @@ export default function QuizzesPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Interactive AI Quizzes</CardTitle>
           <CardDescription>
-            Upload a PDF to auto-generate quiz questions. Test your knowledge and get instant feedback.
+            Upload a PDF, choose your settings, and test your knowledge with AI-generated questions.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -308,44 +337,66 @@ export default function QuizzesPage() {
               <Input id="pdf-upload-quiz" type="file" accept=".pdf" onChange={handleFileChange} className="mt-1" />
               {pdfFile && <p className="text-sm text-muted-foreground mt-2">Selected: {pdfFile.name}</p>}
             </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="num-questions">Number of Questions</Label>
-                    <Input
-                        id="num-questions"
-                        type="number"
-                        value={numberOfQuestions}
-                        onChange={(e) => setNumberOfQuestions(parseInt(e.target.value, 10))}
-                        min="1"
-                        max="20"
-                        className="mt-1"
-                    />
-                </div>
-                 <div>
-                    <div className="flex items-center space-x-2 mt-1">
-                        <Checkbox
-                            id="timed-mode"
-                            checked={isTimedModeEnabled}
-                            onCheckedChange={(checked) => setIsTimedModeEnabled(checked as boolean)}
-                        />
-                        <Label htmlFor="timed-mode" className="cursor-pointer">Enable Timed Mode</Label>
-                    </div>
-                    {isTimedModeEnabled && (
-                        <div className="mt-2">
-                        <Label htmlFor="time-per-question">Time per question (minutes)</Label>
-                        <Input
-                            id="time-per-question"
-                            type="number"
-                            value={timePerQuestion}
-                            onChange={(e) => setTimePerQuestion(parseInt(e.target.value, 10))}
-                            min="1"
-                            className="mt-1"
-                        />
+              <div>
+                <Label htmlFor="num-questions">Number of Questions</Label>
+                <Input
+                  id="num-questions" type="number" value={numberOfQuestions}
+                  onChange={(e) => setNumberOfQuestions(parseInt(e.target.value, 10))}
+                  min="1" max="20" className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="difficulty-level">Difficulty Level</Label>
+                <Select value={difficultyLevel} onValueChange={(val) => setDifficultyLevel(val as GenerateInteractiveQuizInput['difficultyLevel'])}>
+                  <SelectTrigger id="difficulty-level" className="mt-1">
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {difficultyLevels.map(level => <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+                <Label>Question Types (select at least one)</Label>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2">
+                    {allQuestionTypes.map(type => (
+                        <div key={type.id} className="flex items-center space-x-2">
+                            <Checkbox
+                                id={`qtype-${type.id}`}
+                                checked={selectedQuestionTypes.includes(type.id)}
+                                onCheckedChange={(checked) => {
+                                    setSelectedQuestionTypes(prev => 
+                                        checked ? [...prev, type.id] : prev.filter(t => t !== type.id)
+                                    );
+                                }}
+                            />
+                            <Label htmlFor={`qtype-${type.id}`} className="font-normal cursor-pointer">{type.label}</Label>
                         </div>
-                    )}
+                    ))}
                 </div>
             </div>
-            <Button type="submit" disabled={isLoading || !pdfDataUri} className="w-full">
+
+            <div>
+              <div className="flex items-center space-x-2">
+                  <Checkbox id="timed-mode" checked={isTimedModeEnabled} onCheckedChange={(checked) => setIsTimedModeEnabled(checked as boolean)} />
+                  <Label htmlFor="timed-mode" className="cursor-pointer">Enable Timed Mode</Label>
+              </div>
+              {isTimedModeEnabled && (
+                  <div className="mt-2">
+                  <Label htmlFor="time-per-question">Time per question (minutes)</Label>
+                  <Input id="time-per-question" type="number" value={timePerQuestion}
+                      onChange={(e) => setTimePerQuestion(parseInt(e.target.value, 10))}
+                      min="1" className="mt-1"
+                  />
+                  </div>
+              )}
+            </div>
+
+            <Button type="submit" disabled={isLoading || !pdfDataUri || selectedQuestionTypes.length === 0} className="w-full">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <FilePlus className="mr-2 h-4 w-4" /> Generate Quiz
             </Button>
@@ -367,45 +418,92 @@ export default function QuizzesPage() {
       {quiz && currentQuestion && !isQuizFinished && (
         <Card>
           <CardHeader>
-            <CardTitle>Question {currentQuestionIndex + 1} of {quiz.questions.length}</CardTitle>
-            <CardDescription>{currentQuestion.question}</CardDescription>
+            <div className="flex justify-between items-center">
+                <CardTitle>Question {currentQuestionIndex + 1} of {quiz.questions.length}</CardTitle>
+                <span className="text-sm font-medium px-2 py-1 rounded-md bg-secondary text-secondary-foreground">
+                    {allQuestionTypes.find(qt => qt.id === currentQuestion.type)?.label || currentQuestion.type}
+                </span>
+            </div>
+            <CardDescription className="pt-2 text-base">{currentQuestion.question}</CardDescription>
           </CardHeader>
           <CardContent>
-            <RadioGroup value={selectedAnswer || ""} onValueChange={setSelectedAnswer} disabled={showFeedback}>
-              {currentQuestion.options.map((option, index) => (
-                <div key={index} className="flex items-center space-x-2 p-2 rounded-md hover:bg-secondary/50 transition-colors">
-                  <RadioGroupItem value={option} id={`option-${index}`} />
-                  <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">{option}</Label>
-                </div>
-              ))}
-            </RadioGroup>
+            {currentQuestion.type === 'mcq' && currentQuestion.options && (
+              <RadioGroup value={selectedRadioAnswer || ""} onValueChange={setSelectedRadioAnswer} disabled={showFeedback}>
+                {currentQuestion.options.map((option, index) => (
+                  <div key={index} className="flex items-center space-x-2 p-2 rounded-md hover:bg-secondary/50 transition-colors">
+                    <RadioGroupItem value={option} id={`option-${index}`} />
+                    <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">{option}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
+            {currentQuestion.type === 'trueFalse' && (
+              <RadioGroup value={selectedRadioAnswer || ""} onValueChange={setSelectedRadioAnswer} disabled={showFeedback}>
+                {(currentQuestion.options || ["True", "False"]).map((option, index) => ( // Fallback if options aren't set by AI
+                  <div key={index} className="flex items-center space-x-2 p-2 rounded-md hover:bg-secondary/50 transition-colors">
+                    <RadioGroupItem value={option} id={`option-${index}`} />
+                    <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">{option}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
+            {currentQuestion.type === 'fillInTheBlanks' && (
+              <Input 
+                type="text" 
+                value={textInputAnswer} 
+                onChange={(e) => setTextInputAnswer(e.target.value)} 
+                placeholder="Your answer for the blank"
+                disabled={showFeedback}
+                className="mt-2"
+              />
+            )}
+            {currentQuestion.type === 'shortAnswer' && (
+              <Textarea 
+                value={textInputAnswer} 
+                onChange={(e) => setTextInputAnswer(e.target.value)} 
+                placeholder="Your answer..."
+                disabled={showFeedback}
+                className="mt-2 min-h-[100px]"
+                rows={3}
+              />
+            )}
           </CardContent>
           <CardFooter className="flex flex-col items-stretch gap-4">
             {!showFeedback ? (
-              <Button onClick={handleAnswerSubmit} disabled={!selectedAnswer}>
+              <Button onClick={handleAnswerSubmit} 
+                disabled={
+                    ((currentQuestion.type === 'mcq' || currentQuestion.type === 'trueFalse') && !selectedRadioAnswer) ||
+                    ((currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') && !textInputAnswer.trim())
+                }>
                 <Zap className="mr-2 h-4 w-4" /> Submit Answer
               </Button>
             ) : (
               <div className="space-y-4">
-                {selectedAnswer === currentQuestion.answer ? (
+                { ( (currentQuestion.type === 'mcq' || currentQuestion.type === 'trueFalse') && selectedRadioAnswer === currentQuestion.answer) ||
+                  ( (currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') && textInputAnswer.trim().toLowerCase() === currentQuestion.answer.toLowerCase() )? (
                   <div className="flex items-center p-3 rounded-md bg-green-500/10 text-green-400 border border-green-500/30">
                     <CheckCircle2 className="mr-2 h-5 w-5" /> Correct!
                   </div>
                 ) : (
                   <div className="flex flex-col p-3 rounded-md bg-red-500/10 text-red-400 border border-red-500/30">
-                    <div className="flex items-center">
-                     <AlertCircle className="mr-2 h-5 w-5" /> Incorrect.
-                    </div>
+                    <div className="flex items-center"><AlertCircle className="mr-2 h-5 w-5" /> Incorrect.</div>
                     <span className="text-sm mt-1">Correct answer: {currentQuestion.answer}</span>
                   </div>
                 )}
                 {currentQuestionIndex < quiz.questions.length - 1 ? (
                   <Button onClick={handleNextQuestion} className="w-full">Next Question</Button>
-                ) : (
-                  // This block will now be handled by the isQuizFinished check below
-                  null
-                )}
+                ) : null}
               </div>
+            )}
+             {isQuizActive && !showFeedback && quiz && currentQuestionIndex < quiz.questions.length -1 && (
+                <Button onClick={handleEndTestEarly} variant="outline" className="w-full mt-2">
+                    <StopCircle className="mr-2 h-4 w-4" /> End Test Early
+                </Button>
+            )}
+             {isQuizActive && showFeedback && currentQuestionIndex === quiz.questions.length -1 && (
+                 <Button onClick={() => { resetQuizState(true); }} className="w-full mt-4">
+                    <ListChecks className="mr-2 h-4 w-4" /> Finish & View Score
+                </Button>
             )}
           </CardFooter>
         </Card>
@@ -417,14 +515,14 @@ export default function QuizzesPage() {
                 {quizTimeLeft === 0 && isTimedModeEnabled && !showFeedback ? "Time's Up!" : "Quiz Complete!"}
             </CardTitle>
             <CardDescription className="text-lg">Your score: {score} out of {quiz.questions.length}</CardDescription>
-            <Button onClick={() => {
-                resetQuizState();
-            }} className="mt-4">
-              Try Another Quiz
-            </Button>
-            <Link href="/reflection" className="mt-2 block">
-                <Button variant="link">View Reflections</Button>
-            </Link>
+            <div className="mt-4 space-y-2 sm:space-y-0 sm:space-x-2 flex flex-col sm:flex-row justify-center">
+                <Button onClick={() => { resetQuizState(true); }} className="w-full sm:w-auto">
+                    <ShieldQuestion className="mr-2 h-4 w-4" /> Try Another Quiz
+                </Button>
+                <Link href="/reflection" className="w-full sm:w-auto">
+                    <Button variant="outline" className="w-full">View Reflections</Button>
+                </Link>
+            </div>
           </Card>
       )}
     </div>
