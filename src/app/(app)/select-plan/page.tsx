@@ -1,17 +1,18 @@
+// src/app/(app)/select-plan/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { setUserPlan } from "@/lib/user-service";
-import { Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { ensureFreePlan } from "@/lib/user-service"; // Changed from setUserPlan
+import { Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { NexusLearnLogo } from "@/components/icons/nexuslearn-logo";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function SelectPlanPage() {
-  const { user, userProfile, loading: authLoading, refreshUserProfile } = useAuth();
+  const { user, userProfile, loading: authLoading, refreshUserProfile, isFirebaseConfigured } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [status, setStatus] = useState<"loading" | "setting_plan" | "redirecting" | "error">("loading");
@@ -22,22 +23,28 @@ export default function SelectPlanPage() {
       return;
     }
 
+    if (!isFirebaseConfigured) {
+        setStatus("error"); // Firebase config error
+        return;
+    }
+
     if (!user) {
       router.replace("/login");
       return;
     }
 
+    // User is logged in. Check profile and plan.
     if (userProfile) {
-      if (userProfile.plan) { // User already has a plan (e.g. 'free' or any other)
+      if (userProfile.plan === "free") { // User already has the 'free' plan
         setStatus("redirecting");
         router.replace("/dashboard");
       } else {
-        // User exists, profile loaded, but plan is null. Auto-assign 'free' plan.
+        // User exists, profile loaded, but plan is not 'free' or is null. Auto-assign/ensure 'free' plan.
         const autoAssignPlan = async () => {
-          if (status === "setting_plan") return;
+          if (status === "setting_plan" || status === "redirecting") return; // Prevent re-entry
           setStatus("setting_plan");
           try {
-            await setUserPlan(user.uid, "free"); // All features are free, so 'free' plan implies access to everything
+            await ensureFreePlan(user.uid); // Ensures 'free' plan is set
             await refreshUserProfile(); 
             toast({
               title: "Account Setup Complete!",
@@ -51,15 +58,23 @@ export default function SelectPlanPage() {
               description: "Could not finalize your account setup. Please try logging in again.",
               variant: "destructive",
             });
-            console.error("Error auto-assigning plan:", error);
+            console.error("Error auto-assigning/ensuring free plan:", error);
             setStatus("error");
           }
         };
         autoAssignPlan();
       }
+    } else if (user && !userProfile && !authLoading) {
+      // This case means auth is done, user exists, but profile is still null (being fetched by AuthProvider)
+      // We let AuthProvider handle creating/fetching the profile.
+      // If ensureFreePlan is robust, AuthProvider's profile listener will eventually pick up correct state.
+      // For safety, we could trigger ensureFreePlan here as well once profile becomes available,
+      // but current logic in AuthProvider + this useEffect should cover it.
+      // Keep showing loader.
+      setStatus("loading");
     }
-    // If userProfile is null and authLoading is false, AuthProvider is still fetching/creating it.
-  }, [user, userProfile, authLoading, router, toast, refreshUserProfile, status]);
+
+  }, [user, userProfile, authLoading, router, toast, refreshUserProfile, status, isFirebaseConfigured]);
 
   if (status === "loading" || status === "setting_plan" || status === "redirecting") {
     return (
@@ -67,9 +82,9 @@ export default function SelectPlanPage() {
         <NexusLearnLogo className="h-20 w-auto text-primary mb-6" />
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">
-          {status === "setting_plan" ? "Setting up your account..." : 
+          {status === "setting_plan" ? "Finalizing your account..." : 
            status === "redirecting" ? "Redirecting to your dashboard..." :
-           "Finalizing your access..."}
+           "Loading your experience..."}
         </p>
       </div>
     );
@@ -94,12 +109,11 @@ export default function SelectPlanPage() {
     )
   }
 
-
   // Fallback, should ideally be covered by states above
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-background to-secondary/30">
       <NexusLearnLogo className="h-20 w-auto text-primary mb-6" />
-      <p className="mt-4 text-muted-foreground">Loading...</p>
+      <p className="mt-4 text-muted-foreground">Please wait...</p>
     </div>
   );
 }

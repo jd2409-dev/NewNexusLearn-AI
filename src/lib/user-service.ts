@@ -29,7 +29,7 @@ export interface Achievement {
   name: string;
   description: string;
   dateEarned: Timestamp;
-  icon?: string; // Optional: name of a Lucide icon or path to an image
+  icon?: string | null; // Optional: name of a Lucide icon or path to an image, can be null
 }
 
 export interface PastQuiz {
@@ -39,11 +39,11 @@ export interface PastQuiz {
   score: number;
   totalQuestions: number;
   questions: PastQuizQuestionDetail[];
-  aiReflection?: string;
-  wasTimed?: boolean;
-  timeLimitPerQuestion?: number;
-  timeLeft?: number;
-  difficultyLevel?: 'easy' | 'medium' | 'hard';
+  aiReflection?: string | null;
+  wasTimed?: boolean | null;
+  timeLimitPerQuestion?: number | null;
+  timeLeft?: number | null;
+  difficultyLevel?: 'easy' | 'medium' | 'hard' | null;
 }
 
 export interface StudyData {
@@ -64,7 +64,7 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
-  plan: "free" | null;
+  plan: "free" | null; // Plan is always "free" now
   createdAt: Timestamp;
   planSelectedAt?: Timestamp;
   studyData: StudyData;
@@ -86,9 +86,9 @@ export async function createUserProfileDocument(user: User): Promise<void> {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName || user.email?.split('@')[0] || 'User',
-        plan: "free",
+        plan: "free", // Default to free plan
         createdAt: serverTimestamp(),
-        planSelectedAt: serverTimestamp(),
+        planSelectedAt: serverTimestamp(), // Record when plan (even if default) was set
         studyData: {
           overallProgress: 0,
           subjects: [],
@@ -140,31 +140,51 @@ export async function createUserProfileDocument(user: User): Promise<void> {
         if (currentData.studyData.pastQuizzes === undefined) { updates['studyData.pastQuizzes'] = []; needsUpdate = true; }
     }
 
-    if (currentData.plan === null) {
+    if (currentData.plan === null) { // If somehow plan is null, set to 'free'
         updates.plan = "free";
         updates.planSelectedAt = serverTimestamp();
         needsUpdate = true;
     }
 
+
     if (needsUpdate) {
         try {
             await updateDoc(userProfileRef, updates);
         } catch (error) {
-            console.error("Error updating existing user profile with gamification defaults:", error);
+            console.error("Error updating existing user profile with defaults:", error);
         }
     }
   }
 }
 
-export async function setUserPlan(uid: string, plan: "free"): Promise<void> {
+// This function ensures the user has the 'free' plan set.
+// It's called after login/signup if the plan isn't already set.
+export async function ensureFreePlan(uid: string): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", uid);
   try {
-    await updateDoc(userProfileRef, { plan, planSelectedAt: serverTimestamp() });
+    const docSnap = await getDoc(userProfileRef);
+    if (docSnap.exists()) {
+      const profile = docSnap.data() as UserProfile;
+      if (profile.plan === null) { // Only update if plan is explicitly null
+        await updateDoc(userProfileRef, { 
+            plan: "free", 
+            planSelectedAt: serverTimestamp() 
+        });
+      } else if (profile.plan === undefined) { // Also handle if plan field is missing entirely
+         await updateDoc(userProfileRef, { 
+            plan: "free", 
+            planSelectedAt: serverTimestamp() 
+        });
+      }
+    }
+    // If profile doesn't exist, createUserProfileDocument will handle setting the 'free' plan.
   } catch (error) {
-    console.error("Error setting user plan:", error);
-    throw error;
+    console.error("Error ensuring user plan:", error);
+    // Not throwing error here to avoid blocking login flow, 
+    // as createUserProfileDocument is the primary source for profile creation.
   }
 }
+
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const userProfileRef = doc(db, "userProfiles", uid);
@@ -173,45 +193,40 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     if (docSnap.exists()) {
       const profile = docSnap.data() as UserProfile;
 
-      // Check and initialize missing gamification fields if profile exists but fields are missing
-      if (!profile.studyData || profile.studyData.xp === undefined || profile.plan === null) {
+      let needsUpdate = false;
+      const updates: any = {};
+
+      if (!profile.studyData) {
         const initialWeeklyHours: WeeklyHours[] = [
             { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
             { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
         ];
-        const updates: any = {};
-        let needsUpdate = false;
-
-        if (!profile.studyData) {
-            updates.studyData = {
-                overallProgress: 0, subjects: [], weeklyStudyHours: initialWeeklyHours,
-                lastActivityDate: serverTimestamp(), pastQuizzes: [], xp: 0, level: 1, coins: 0,
-                achievements: [], currentStreak: 1, lastLoginDate: serverTimestamp(),
-            };
-            needsUpdate = true;
-        } else {
-            if (profile.studyData.xp === undefined) { updates['studyData.xp'] = 0; needsUpdate = true; }
-            if (profile.studyData.level === undefined) { updates['studyData.level'] = 1; needsUpdate = true; }
-            if (profile.studyData.coins === undefined) { updates['studyData.coins'] = 0; needsUpdate = true; }
-            if (profile.studyData.achievements === undefined) { updates['studyData.achievements'] = []; needsUpdate = true; }
-            if (profile.studyData.currentStreak === undefined) { updates['studyData.currentStreak'] = 1; needsUpdate = true; }
-            if (profile.studyData.lastLoginDate === undefined) { updates['studyData.lastLoginDate'] = serverTimestamp(); needsUpdate = true; }
-            if (profile.studyData.pastQuizzes === undefined) { updates['studyData.pastQuizzes'] = []; needsUpdate = true; }
-        }
-        
-        if (profile.plan === null) {
-            updates.plan = "free";
-            updates.planSelectedAt = serverTimestamp();
-            needsUpdate = true;
-        }
-        
-        if (needsUpdate) {
-            await updateDoc(userProfileRef, updates);
-            const updatedDocSnap = await getDoc(userProfileRef);
-            if (updatedDocSnap.exists()) {
-                 return updatedDocSnap.data() as UserProfile;
-            }
-        }
+        updates.studyData = {
+            overallProgress: 0, subjects: [], weeklyStudyHours: initialWeeklyHours,
+            lastActivityDate: serverTimestamp(), pastQuizzes: [], xp: 0, level: 1, coins: 0,
+            achievements: [], currentStreak: 1, lastLoginDate: serverTimestamp(),
+        };
+        needsUpdate = true;
+      } else {
+        if (profile.studyData.xp === undefined) { updates['studyData.xp'] = 0; needsUpdate = true; }
+        if (profile.studyData.level === undefined) { updates['studyData.level'] = 1; needsUpdate = true; }
+        if (profile.studyData.coins === undefined) { updates['studyData.coins'] = 0; needsUpdate = true; }
+        if (profile.studyData.achievements === undefined) { updates['studyData.achievements'] = []; needsUpdate = true; }
+        if (profile.studyData.currentStreak === undefined) { updates['studyData.currentStreak'] = 1; needsUpdate = true; }
+        if (profile.studyData.lastLoginDate === undefined) { updates['studyData.lastLoginDate'] = serverTimestamp(); needsUpdate = true; }
+        if (profile.studyData.pastQuizzes === undefined) { updates['studyData.pastQuizzes'] = []; needsUpdate = true; }
+      }
+      
+      if (profile.plan === null || profile.plan === undefined) {
+          updates.plan = "free";
+          updates.planSelectedAt = serverTimestamp();
+          needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
+          await updateDoc(userProfileRef, updates);
+          const updatedDocSnap = await getDoc(userProfileRef); // Re-fetch after update
+          return updatedDocSnap.exists() ? (updatedDocSnap.data() as UserProfile) : null;
       }
       return profile;
     }
@@ -296,16 +311,13 @@ export async function addXpAndCoins(userId: string, xpToAdd: number, coinsToAdd:
             const newXp = currentXp + xpToAdd;
             const newCoins = currentCoins + coinsToAdd;
             
-            // Level up logic
             let newLevel = currentLevel;
             if (newXp >= newLevel * XP_PER_LEVEL) {
                 newLevel += Math.floor(newXp / XP_PER_LEVEL) - (currentLevel -1) ; 
-                // Basic level up, can be more sophisticated
                  unlockAchievement(userId, {
                     id: `level_up_${newLevel}`,
                     name: `Reached Level ${newLevel}!`,
                     description: `Congratulations on reaching level ${newLevel}. Keep up the great work!`,
-                    dateEarned: serverTimestamp(),
                     icon: "Award",
                 });
             }
@@ -322,19 +334,22 @@ export async function addXpAndCoins(userId: string, xpToAdd: number, coinsToAdd:
     }
 }
 
-export async function unlockAchievement(userId: string, achievement: Omit<Achievement, 'dateEarned'> & { dateEarned?: Timestamp }): Promise<void> {
+export async function unlockAchievement(userId: string, achievement: Omit<Achievement, 'dateEarned' | 'icon'> & { dateEarned?: Timestamp, icon?: string }): Promise<void> {
     const userProfileRef = doc(db, "userProfiles", userId);
     try {
         const userProfile = await getUserProfile(userId);
         if (userProfile && userProfile.studyData) {
             const alreadyEarned = userProfile.studyData.achievements.some(a => a.id === achievement.id);
             if (!alreadyEarned) {
-                const newAchievement: Achievement = {
-                    ...achievement,
+                const newAchievementData: Achievement = {
+                    id: achievement.id,
+                    name: achievement.name,
+                    description: achievement.description,
                     dateEarned: achievement.dateEarned || serverTimestamp(),
+                    icon: achievement.icon === undefined ? null : achievement.icon,
                 };
                 await updateDoc(userProfileRef, {
-                    "studyData.achievements": arrayUnion(newAchievement),
+                    "studyData.achievements": arrayUnion(newAchievementData),
                     "studyData.lastActivityDate": serverTimestamp(),
                 });
             }
@@ -354,43 +369,55 @@ export async function addPastQuiz(userId: string, quizData: PastQuiz): Promise<v
         return;
     }
     
-    const updatedQuizzes = [quizData, ...(userProfile.studyData.pastQuizzes || [])];
+    const sanitizedQuizData: PastQuiz = {
+        id: quizData.id,
+        quizName: quizData.quizName,
+        dateAttempted: quizData.dateAttempted,
+        score: quizData.score,
+        totalQuestions: quizData.totalQuestions,
+        questions: quizData.questions, // Assuming PastQuizQuestionDetail is always fully populated or sanitized at source
+        aiReflection: quizData.aiReflection === undefined ? null : quizData.aiReflection,
+        wasTimed: quizData.wasTimed === undefined ? null : quizData.wasTimed,
+        timeLimitPerQuestion: quizData.timeLimitPerQuestion === undefined ? null : quizData.timeLimitPerQuestion,
+        timeLeft: quizData.timeLeft === undefined ? null : quizData.timeLeft,
+        difficultyLevel: quizData.difficultyLevel === undefined ? null : quizData.difficultyLevel,
+    };
+    
+    const updatedQuizzes = [sanitizedQuizData, ...(userProfile.studyData.pastQuizzes || [])];
     
     await updateDoc(userProfileRef, {
-        "studyData.pastQuizzes": updatedQuizzes.slice(0, 50),
+        "studyData.pastQuizzes": updatedQuizzes.slice(0, 50), // Keep only last 50 quizzes
         "studyData.lastActivityDate": serverTimestamp(),
     });
 
-    // Award XP and Coins for completing a quiz
-    let xpEarned = 50 + (quizData.score * 10); // Base XP + score bonus
-    let coinsEarned = 10 + quizData.score;     // Base Coins + score bonus
+    let xpEarned = 50 + (sanitizedQuizData.score * 10); 
+    let coinsEarned = 10 + sanitizedQuizData.score;     
 
-    if (quizData.difficultyLevel === "medium") {
+    if (sanitizedQuizData.difficultyLevel === "medium") {
         xpEarned *= 1.2;
         coinsEarned *= 1.2;
-    } else if (quizData.difficultyLevel === "hard") {
+    } else if (sanitizedQuizData.difficultyLevel === "hard") {
         xpEarned *= 1.5;
         coinsEarned *= 1.5;
     }
-    if (quizData.wasTimed && (quizData.timeLeft === undefined || quizData.timeLeft > 0)) { // Bonus for completing timed quiz
+    if (sanitizedQuizData.wasTimed && (sanitizedQuizData.timeLeft === undefined || sanitizedQuizData.timeLeft === null || sanitizedQuizData.timeLeft > 0)) { 
         xpEarned += 20;
         coinsEarned += 5;
     }
-    if (quizData.score === quizData.totalQuestions && quizData.totalQuestions > 0) { // Perfect score bonus
+    if (sanitizedQuizData.score === sanitizedQuizData.totalQuestions && sanitizedQuizData.totalQuestions > 0) { 
         xpEarned += 50;
         coinsEarned += 20;
         unlockAchievement(userId, {
-            id: `perfect_quiz_${quizData.quizName.replace(/\s+/g, '_').toLowerCase()}`,
+            id: `perfect_quiz_${sanitizedQuizData.quizName.replace(/\s+/g, '_').toLowerCase()}`,
             name: "Quiz Perfectionist!",
-            description: `Achieved a perfect score on the "${quizData.quizName}" quiz.`,
+            description: `Achieved a perfect score on the "${sanitizedQuizData.quizName}" quiz.`,
             icon: "Star"
         });
     }
 
     await addXpAndCoins(userId, Math.round(xpEarned), Math.round(coinsEarned));
 
-    // Check for "First Quiz Completed" achievement
-    if ((userProfile.studyData.pastQuizzes || []).length === 0) { // This means the current quiz is the first one
+    if ((userProfile.studyData.pastQuizzes || []).length === 0) { 
         unlockAchievement(userId, {
             id: "first_quiz_completed",
             name: "Quiz Starter",
@@ -399,23 +426,32 @@ export async function addPastQuiz(userId: string, quizData: PastQuiz): Promise<v
         });
     }
 
-
   } catch (error) {
     console.error("Error adding past quiz or awarding points:", error);
     throw error;
   }
 }
 
-export async function updatePastQuizReflection(userId: string, quizId: string, reflection: string): Promise<void> {
+export async function updatePastQuizReflection(userId: string, quizId: string, reflectionText: string): Promise<void> {
   const userProfileRef = doc(db, "userProfiles", userId);
   try {
     const userProfile = await getUserProfile(userId);
     if (userProfile && userProfile.studyData && userProfile.studyData.pastQuizzes) {
       const updatedQuizzes = userProfile.studyData.pastQuizzes.map(quiz => {
         if (quiz.id === quizId) {
-          return { ...quiz, aiReflection: reflection };
+          // Ensure existing quiz data is sanitized before spreading, though it should be already
+          const sanitizedExistingQuiz: PastQuiz = {
+            ...quiz,
+            aiReflection: quiz.aiReflection === undefined ? null : quiz.aiReflection,
+            wasTimed: quiz.wasTimed === undefined ? null : quiz.wasTimed,
+            timeLimitPerQuestion: quiz.timeLimitPerQuestion === undefined ? null : quiz.timeLimitPerQuestion,
+            timeLeft: quiz.timeLeft === undefined ? null : quiz.timeLeft,
+            difficultyLevel: quiz.difficultyLevel === undefined ? null : quiz.difficultyLevel,
+            icon: quiz.icon === undefined ? null : quiz.icon,
+          };
+          return { ...sanitizedExistingQuiz, aiReflection: reflectionText };
         }
-        return quiz;
+        return quiz; // Other quizzes should already be sanitized from when they were added
       });
       await updateDoc(userProfileRef, {
         "studyData.pastQuizzes": updatedQuizzes,
@@ -433,18 +469,19 @@ export async function updateUserLoginStreak(userId: string): Promise<void> {
     try {
         const userProfile = await getUserProfile(userId);
         if (userProfile && userProfile.studyData) {
-            const lastLogin = userProfile.studyData.lastLoginDate?.toDate();
+            const lastLoginTimestamp = userProfile.studyData.lastLoginDate;
+            const lastLogin = lastLoginTimestamp ? lastLoginTimestamp.toDate() : null;
             const today = new Date();
             let currentStreak = userProfile.studyData.currentStreak || 0;
             let coinsEarned = 0;
 
             if (lastLogin) {
-                if (!isToday(lastLogin)) { // If last login was not today
+                if (!isToday(lastLogin)) { 
                     const diffDays = differenceInCalendarDays(today, lastLogin);
                     if (diffDays === 1) {
-                        currentStreak++; // Increment streak
-                        coinsEarned = currentStreak * 5; // e.g., 5 coins per day of streak
-                         if (currentStreak % 7 === 0) { // Bonus every 7 days
+                        currentStreak++; 
+                        coinsEarned = currentStreak * 5; 
+                         if (currentStreak % 7 === 0) { 
                             coinsEarned += 50;
                              unlockAchievement(userId, {
                                 id: `streak_${currentStreak}_days`,
@@ -454,13 +491,12 @@ export async function updateUserLoginStreak(userId: string): Promise<void> {
                             });
                         }
                     } else {
-                        currentStreak = 1; // Reset streak
+                        currentStreak = 1; 
                         coinsEarned = 5;
                     }
-                     await addXpAndCoins(userId, 0, coinsEarned); // Add streak coins
+                     if (coinsEarned > 0) await addXpAndCoins(userId, 0, coinsEarned); 
                 }
-                 // if lastLogin was today, do nothing to streak or coins for login
-            } else { // First login or lastLoginDate was not set
+            } else { 
                 currentStreak = 1;
                 coinsEarned = 5;
                 await addXpAndCoins(userId, 0, coinsEarned);
@@ -468,8 +504,8 @@ export async function updateUserLoginStreak(userId: string): Promise<void> {
 
             await updateDoc(userProfileRef, {
                 "studyData.currentStreak": currentStreak,
-                "studyData.lastLoginDate": serverTimestamp(), // Update last login to today
-                "studyData.lastActivityDate": serverTimestamp(), // Also update general activity
+                "studyData.lastLoginDate": serverTimestamp(), 
+                "studyData.lastActivityDate": serverTimestamp(), 
             });
         }
     } catch (error) {
