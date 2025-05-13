@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent, useEffect, useRef } from "react";
@@ -343,7 +344,18 @@ export default function QuizzesPage() {
                 <Label htmlFor="num-questions">Number of Questions</Label>
                 <Input
                   id="num-questions" type="number" value={numberOfQuestions}
-                  onChange={(e) => setNumberOfQuestions(parseInt(e.target.value, 10))}
+                  onChange={(e) => {
+                    const rawValue = e.target.value;
+                    const newNum = parseInt(rawValue, 10);
+                    if (!isNaN(newNum)) {
+                      setNumberOfQuestions(newNum);
+                    } else if (rawValue === "") {
+                      // If input is cleared, set to a sensible default (e.g., min value)
+                      setNumberOfQuestions(1); 
+                    }
+                    // If rawValue is non-numeric and not empty (e.g., "abc"), newNum is NaN.
+                    // In this case, numberOfQuestions state remains unchanged, and the input field visually reverts.
+                  }}
                   min="1" max="20" className="mt-1"
                 />
               </div>
@@ -389,7 +401,15 @@ export default function QuizzesPage() {
                   <div className="mt-2">
                   <Label htmlFor="time-per-question">Time per question (minutes)</Label>
                   <Input id="time-per-question" type="number" value={timePerQuestion}
-                      onChange={(e) => setTimePerQuestion(parseInt(e.target.value, 10))}
+                      onChange={(e) => {
+                        const rawValue = e.target.value;
+                        const newNum = parseInt(rawValue, 10);
+                        if (!isNaN(newNum)) {
+                            setTimePerQuestion(newNum);
+                        } else if (rawValue === "") {
+                            setTimePerQuestion(1); 
+                        }
+                      }}
                       min="1" className="mt-1"
                   />
                   </div>
@@ -529,3 +549,5 @@ export default function QuizzesPage() {
   );
 }
 
+
+    
