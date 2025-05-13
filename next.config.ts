@@ -23,8 +23,9 @@ const nextConfig: NextConfig = {
     if (!isServer) {
       // Primary strategy: Stub out Node.js core modules for the client
       config.resolve.fallback = {
-        ...config.resolve.fallback,
+        ...(config.resolve.fallback || {}), // Ensure fallback object exists
         async_hooks: false, // Key fix: ensure async_hooks is stubbed
+        "node:async_hooks": false, // Add fallback for prefixed import
         fs: false,
         net: false,
         tls: false,
