@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -10,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { provideWritingAssistance, type ProvideWritingAssistanceOutput, type ProvideWritingAssistanceInput } from "@/ai/flows/provide-writing-assistance";
 import { Loader2, Edit3, Sparkles, CheckCircle } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
 
 const assistanceTypes: ProvideWritingAssistanceInput['assistanceType'][] = ['overall', 'grammar', 'structure', 'clarity'];
 
@@ -20,9 +18,6 @@ export default function WritingAssistantPage() {
   const [feedbackResult, setFeedbackResult] = useState<ProvideWritingAssistanceOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { userProfile } = useAuth();
-  const isPaidPlan = userProfile?.plan === "paid";
-
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,15 +26,6 @@ export default function WritingAssistantPage() {
         title: "Missing Text",
         description: "Please enter some text to get assistance.",
         variant: "destructive",
-      });
-      return;
-    }
-
-    if (!isPaidPlan) {
-      toast({
-        title: "Paid Plan Feature",
-        description: "The Writing Assistant is a premium feature. Please upgrade your plan to use it.",
-        variant: "default"
       });
       return;
     }
@@ -74,7 +60,6 @@ export default function WritingAssistantPage() {
           </CardTitle>
           <CardDescription>
             Get AI-powered feedback on your essays, reports, and other written work.
-            { !isPaidPlan && " This is a premium feature available on the Paid Plan."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -88,12 +73,12 @@ export default function WritingAssistantPage() {
                 placeholder="Paste your essay, report, or any text here..."
                 className="mt-1 min-h-[200px]"
                 rows={10}
-                disabled={!isPaidPlan || isLoading}
+                disabled={isLoading}
               />
             </div>
             <div>
               <Label htmlFor="assistance-type">Type of Assistance:</Label>
-              <Select value={assistanceType} onValueChange={(value) => setAssistanceType(value as ProvideWritingAssistanceInput['assistanceType'])} disabled={!isPaidPlan || isLoading}>
+              <Select value={assistanceType} onValueChange={(value) => setAssistanceType(value as ProvideWritingAssistanceInput['assistanceType'])} disabled={isLoading}>
                 <SelectTrigger id="assistance-type" className="mt-1">
                   <SelectValue placeholder="Select assistance type" />
                 </SelectTrigger>
@@ -106,20 +91,15 @@ export default function WritingAssistantPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={isLoading || !text || !isPaidPlan} className="w-full sm:w-auto">
+            <Button type="submit" disabled={isLoading || !text} className="w-full sm:w-auto">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Sparkles className="mr-2 h-4 w-4" /> Get Feedback
             </Button>
-             {!isPaidPlan && (
-              <p className="text-sm text-destructive mt-2">
-                Upgrade to the Paid Plan to use the AI Writing Assistant.
-              </p>
-            )}
           </form>
         </CardContent>
       </Card>
 
-      {feedbackResult && isPaidPlan && (
+      {feedbackResult && (
         <Card className="bg-secondary/30">
           <CardHeader>
             <CardTitle className="flex items-center">
