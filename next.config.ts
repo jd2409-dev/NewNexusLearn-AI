@@ -18,6 +18,33 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer, webpack }) => {
+    if (!isServer) {
+      // Prevent bundling of Node.js specific modules for the client
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        async_hooks: false, 
+        fs: false, 
+        net: false,
+        tls: false,
+        child_process: false, // common offender for server-side libs
+        perf_hooks: false, // another node-specific module
+      };
+    }
+
+    // Fix for "critial dependency: the request of a dependency is an expression"
+    // often related to dynamic requires in libraries like Genkit or its dependencies.
+    config.module.rules.push({
+      test: /@google-cloud\/functions-framework/,
+      use: 'null-loader',
+    });
+    config.plugins.push(new webpack.IgnorePlugin({
+      resourceRegExp: /^@google-cloud\/functions-framework$/,
+    }));
+
+
+    return config;
+  },
 };
 
 export default nextConfig;
