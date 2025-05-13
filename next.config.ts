@@ -24,17 +24,23 @@ const nextConfig: NextConfig = {
       // Primary strategy: Stub out Node.js core modules for the client
       config.resolve.fallback = {
         ...(config.resolve.fallback || {}), // Ensure fallback object exists
-        async_hooks: false, // Key fix: ensure async_hooks is stubbed
-        "node:async_hooks": false, // Add fallback for prefixed import
-        fs: false,
-        net: false,
-        tls: false,
-        child_process: false,
-        perf_hooks: false,
+        "async_hooks": false,
+        "node:async_hooks": false,
+        "child_process": false,
+        "node:child_process": false,
+        "fs": false,
+        "node:fs": false,
+        "net": false,
+        "node:net": false,
+        "perf_hooks": false,
+        "node:perf_hooks": false,
+        "tls": false,
+        "node:tls": false,
       };
 
       // Aggressively ignore server-side OpenTelemetry packages on the client
       // These are known to attempt to require 'async_hooks'
+      config.plugins = config.plugins || [];
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /@opentelemetry[\\/]sdk-trace-node/,
@@ -45,24 +51,14 @@ const nextConfig: NextConfig = {
       );
     }
 
-    // Existing fix for @google-cloud/functions-framework
-    // This part seems unrelated to the current async_hooks error but kept for stability
-    if (typeof config.resolve.alias === 'object' && config.resolve.alias !== null) {
-        // Ensure @google-cloud/functions-framework is handled if it causes issues
-        // However, the primary issue is async_hooks, so the rule below might be too broad
-        // or better handled by IgnorePlugin if it's a server-only package.
-    }
-    // Let's ensure @google-cloud/functions-framework is ignored if it's a server-only dependency
+    // Ignore @google-cloud/functions-framework.
+    // This is kept general (not in !isServer block) as per original structure,
+    // though if it specifically causes client-side issues, it could be moved into the !isServer block.
+    config.plugins = config.plugins || [];
     config.plugins.push(new webpack.IgnorePlugin({
       resourceRegExp: /^@google-cloud\/functions-framework$/,
     }));
-    // If null-loader is preferred for specific cases and installed:
-    // config.module.rules.push({
-    //   test: /@google-cloud\/functions-framework/,
-    //   use: 'null-loader',
-    // });
-
-
+    
     return config;
   },
 };
