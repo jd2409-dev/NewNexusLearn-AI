@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { generateInteractiveQuiz, type GenerateInteractiveQuizOutput, type QuizQuestion, type QuestionType } from "@/ai/flows/generate-interactive-quiz";
+import { generateInteractiveQuiz, type GenerateInteractiveQuizOutput, type QuizQuestion, type QuestionType, type GenerateInteractiveQuizInput } from "@/ai/flows/generate-interactive-quiz";
 import { fileToDataUri } from "@/lib/file-utils";
 import { Loader2, FilePlus, Zap, AlertCircle, CheckCircle2, Clock, Timer, StopCircle, ListChecks, ShieldQuestion } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -127,8 +127,8 @@ export default function QuizzesPage() {
     if (!pdfDataUri) {
       toast({ title: "Missing PDF", description: "Please upload a PDF to generate a quiz.", variant: "destructive" }); return;
     }
-    if (numberOfQuestions <= 0) {
-      toast({ title: "Invalid Number", description: "Number of questions must be greater than 0.", variant: "destructive" }); return;
+    if (numberOfQuestions <= 0 || numberOfQuestions > 20) {
+      toast({ title: "Invalid Number", description: "Number of questions must be between 1 and 20.", variant: "destructive" }); return;
     }
     if (selectedQuestionTypes.length === 0) {
       toast({ title: "No Question Types", description: "Please select at least one question type.", variant: "destructive" }); return;
@@ -348,13 +348,10 @@ export default function QuizzesPage() {
                     const rawValue = e.target.value;
                     const newNum = parseInt(rawValue, 10);
                     if (!isNaN(newNum)) {
-                      setNumberOfQuestions(newNum);
+                      setNumberOfQuestions(newNum > 20 ? 20 : newNum < 1 ? 1 : newNum);
                     } else if (rawValue === "") {
-                      // If input is cleared, set to a sensible default (e.g., min value)
                       setNumberOfQuestions(1); 
                     }
-                    // If rawValue is non-numeric and not empty (e.g., "abc"), newNum is NaN.
-                    // In this case, numberOfQuestions state remains unchanged, and the input field visually reverts.
                   }}
                   min="1" max="20" className="mt-1"
                 />
@@ -405,7 +402,7 @@ export default function QuizzesPage() {
                         const rawValue = e.target.value;
                         const newNum = parseInt(rawValue, 10);
                         if (!isNaN(newNum)) {
-                            setTimePerQuestion(newNum);
+                            setTimePerQuestion(newNum < 1 ? 1 : newNum);
                         } else if (rawValue === "") {
                             setTimePerQuestion(1); 
                         }
@@ -515,12 +512,12 @@ export default function QuizzesPage() {
                 ) : null}
               </div>
             )}
-             {isQuizActive && !showFeedback && quiz && currentQuestionIndex < quiz.questions.length -1 && (
+             {isQuizActive && !showFeedback && quiz && currentQuestionIndex < quiz.questions.length && ( // Show End Test button throughout the quiz if active and not on feedback
                 <Button onClick={handleEndTestEarly} variant="outline" className="w-full mt-2">
                     <StopCircle className="mr-2 h-4 w-4" /> End Test Early
                 </Button>
             )}
-             {isQuizActive && showFeedback && currentQuestionIndex === quiz.questions.length -1 && (
+             {showFeedback && currentQuestionIndex === quiz.questions.length -1 && ( // Show Finish & View Score button on the last question's feedback
                  <Button onClick={() => { resetQuizState(true); }} className="w-full mt-4">
                     <ListChecks className="mr-2 h-4 w-4" /> Finish & View Score
                 </Button>

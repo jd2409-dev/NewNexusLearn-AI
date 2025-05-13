@@ -25,7 +25,7 @@ const GenerateInteractiveQuizInputSchema = z.object({
   numberOfQuestions: z
     .number()
     .min(1)
-    .max(20)
+    .max(20) // Updated max value
     .default(5)
     .describe('The number of quiz questions to generate.'),
   difficultyLevel: z.enum(['easy', 'medium', 'hard']).default('medium').optional()
