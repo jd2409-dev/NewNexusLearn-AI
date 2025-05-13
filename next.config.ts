@@ -1,15 +1,6 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { patchWebpackConfig } = require('next-rpc/patch');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // typescript: {
-  //   ignoreBuildErrors: true, // It's generally better to fix build errors
-  // },
   webpack: (config, { isServer }) => {
-    // Existing patch for next-rpc
-    patchWebpackConfig(config, { isServer });
-    
     // Solution for Node.js core modules not available in the browser
     if (!isServer) {
       config.resolve.fallback = {
