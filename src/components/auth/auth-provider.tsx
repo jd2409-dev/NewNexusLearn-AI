@@ -5,9 +5,11 @@ import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import type { FirebaseError } from 'firebase/app';
 import { createContext, useEffect, useState, type ReactNode, useCallback } from 'react';
-import { auth as firebaseAuthInstance } from '@/firebase';
+import { auth as firebaseAuthInstance, db } from '@/firebase'; // Ensure db is exported from firebase.ts
 import { useRouter } from 'next/navigation';
-import { createUserProfileDocument, getUserProfile, type UserProfile } from '@/lib/user-service';
+import { createUserProfileDocument, getUserProfile, type UserProfile, type StudyData } from '@/lib/user-service';
+import { doc, onSnapshot } from 'firebase/firestore';
+
 
 export interface AuthContextType {
   user: User | null;
@@ -33,27 +35,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFirebaseConfigured, setIsFirebaseConfigured] = useState(!!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+  
+  // Check if Firebase config keys are present in environment variables
+  const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const [isFirebaseConfigured, setIsFirebaseConfigured] = useState(!!firebaseApiKey && !!firebaseProjectId);
   const router = useRouter();
 
-  const fetchUserProfile = useCallback(async (currentUser: User | null) => {
+  const fetchUserProfileData = useCallback(async (currentUser: User | null) => {
     if (currentUser) {
       let profile = await getUserProfile(currentUser.uid);
       if (!profile) {
         // This case might happen if Firestore creation failed or for very old users
-        // For new signUps, createUserProfileDocument is called explicitly.
         await createUserProfileDocument(currentUser); // Attempt to create if missing
         profile = await getUserProfile(currentUser.uid);
       }
-      setUserProfile(profile);
+      setUserProfile(profile); // This profile now includes studyData
     } else {
       setUserProfile(null);
     }
   }, []);
 
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-      setError("Firebase is not configured. Please ensure API keys (e.g., NEXT_PUBLIC_FIREBASE_API_KEY) are set in your .env.local file.");
+    if (!firebaseApiKey || !firebaseProjectId) {
+      const errorMsg = "Firebase is not configured. Please ensure API keys (e.g., NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_PROJECT_ID) are set in your .env.local file.";
+      console.error(errorMsg);
+      setError(errorMsg);
       setIsFirebaseConfigured(false);
       setLoading(false);
       setUser(null);
@@ -61,14 +68,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
     
-    setIsFirebaseConfigured(true);
-    const unsubscribe = onAuthStateChanged(firebaseAuthInstance, async (currentUser) => {
+    setIsFirebaseConfigured(true); // Mark as configured if keys are present
+    
+    const authUnsubscribe = onAuthStateChanged(firebaseAuthInstance, async (currentUser) => {
       setUser(currentUser);
-      await fetchUserProfile(currentUser);
-      setLoading(false);
+      if (currentUser) {
+        // Set up Firestore listener for real-time profile updates
+        const profileRef = doc(db, "userProfiles", currentUser.uid);
+        const profileUnsubscribe = onSnapshot(profileRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data() as UserProfile);
+          } else {
+            // Profile doesn't exist, try to create it
+            await createUserProfileDocument(currentUser);
+            // getUserProfile will be called by the effect below if needed, or re-fetch here
+            const newProfile = await getUserProfile(currentUser.uid);
+            setUserProfile(newProfile);
+          }
+          setLoading(false);
+        }, (snapshotError) => {
+          console.error("Error listening to user profile:", snapshotError);
+          setError("Could not load user profile in real-time.");
+          setLoading(false);
+        });
+        return () => profileUnsubscribe(); // Cleanup Firestore listener
+      } else {
+        setUserProfile(null);
+        setLoading(false);
+      }
     });
-    return () => unsubscribe();
-  }, [fetchUserProfile]);
+
+    return () => authUnsubscribe(); // Cleanup auth listener
+  }, [firebaseApiKey, firebaseProjectId]);
+
 
   const clearError = () => setError(null);
 
@@ -82,11 +114,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUserProfile = useCallback(async () => {
     if (user) {
-      setLoading(true);
-      await fetchUserProfile(user);
-      setLoading(false);
+      setLoading(true); // Indicate loading state
+      await fetchUserProfileData(user);
+      setLoading(false); // Clear loading state
     }
-  }, [user, fetchUserProfile]);
+  }, [user, fetchUserProfileData]);
 
   const signIn = async (email: string, pass: string): Promise<User | null> => {
     if (!ensureFirebaseConfigured()) return null;
@@ -94,7 +126,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance, email, pass);
-      // onAuthStateChanged will handle setting user and fetching profile
+      // onAuthStateChanged and the Firestore listener will handle setting user and profile
       return userCredential.user;
     } catch (e) {
       const firebaseError = e as FirebaseError;
@@ -112,10 +144,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance, email, pass);
-      await createUserProfileDocument(userCredential.user);
-      // onAuthStateChanged will handle setting user and fetching profile,
-      // but we fetch profile here to ensure it's available for immediate redirect logic.
-      await fetchUserProfile(userCredential.user); 
+      await createUserProfileDocument(userCredential.user); 
+      // onAuthStateChanged and listener will handle setting user and fetching profile
       return userCredential.user;
     } catch (e) {
       const firebaseError = e as FirebaseError;
@@ -145,7 +175,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     userProfile,
     loading,

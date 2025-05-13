@@ -1,13 +1,32 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp, Activity } from "lucide-react";
+import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp, Activity, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useAuth } from "@/hooks/use-auth";
+import type { SubjectProgress } from "@/lib/user-service";
 
 export default function DashboardPage() {
+  const { userProfile, loading } = useAuth();
+
+  const studySubjects = userProfile?.studyData?.subjects || [];
+
+  // Example: Calculate an overall "trending up" percentage or use a placeholder.
+  // This would ideally come from more detailed analytics data.
+  const trendingPercentage = 5.2; 
+
+  if (loading && !userProfile) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <section className="bg-card p-8 rounded-lg shadow-lg">
@@ -77,37 +96,31 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center"><Activity className="mr-2 h-5 w-5 text-primary" />Recent Progress</CardTitle>
-            <CardDescription>Your progress in subjects (mock data).</CardDescription>
+            <CardDescription>Your current progress in various subjects.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Mathematics</span>
-                <span>75%</span>
-              </div>
-              <Progress value={75} aria-label="Mathematics progress 75%" />
-            </div>
-            <div className="space-y-2 mt-4">
-              <div className="flex justify-between">
-                <span>Physics</span>
-                <span>40%</span>
-              </div>
-              <Progress value={40} aria-label="Physics progress 40%" />
-            </div>
-             <div className="space-y-2 mt-4">
-              <div className="flex justify-between">
-                <span>Chemistry</span>
-                <span>60%</span>
-              </div>
-              <Progress value={60} aria-label="Chemistry progress 60%" />
-            </div>
+            {studySubjects.length > 0 ? (
+              studySubjects.map((subject: SubjectProgress, index: number) => (
+                <div key={index} className="space-y-2 mt-4 first:mt-0">
+                  <div className="flex justify-between">
+                    <span>{subject.name}</span>
+                    <span>{subject.progress}%</span>
+                  </div>
+                  <Progress value={subject.progress} aria-label={`${subject.name} progress ${subject.progress}%`} />
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground">No study activity recorded yet. Start a learning path or take a quiz to see your progress here!</p>
+            )}
           </CardContent>
            <CardFooter className="flex-col items-start gap-2 text-sm">
-            <div className="flex gap-2 font-medium leading-none">
-              Trending up by 5.2% this month <TrendingUp className="h-4 w-4 text-green-500" />
-            </div>
+            {studySubjects.length > 0 && (
+                <div className="flex gap-2 font-medium leading-none">
+                Trending up by {trendingPercentage}% this month <TrendingUp className="h-4 w-4 text-green-500" />
+                </div>
+            )}
             <div className="leading-none text-muted-foreground">
-              Showing overall syllabus coverage.
+              Showing overall syllabus coverage based on your activity.
             </div>
              <Link href="/analytics" className="w-full mt-4">
                 <Button variant="outline" className="w-full">
@@ -147,4 +160,3 @@ function DashboardCard({ title, description, icon, href, actionText }: Dashboard
     </Card>
   );
 }
-

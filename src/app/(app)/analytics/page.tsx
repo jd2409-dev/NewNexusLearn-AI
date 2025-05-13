@@ -1,7 +1,8 @@
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Activity, Clock, TrendingUp } from "lucide-react";
+import { BarChart3, Activity, Clock, TrendingUp, Loader2 } from "lucide-react";
 import Image from "next/image";
 import {
   ChartContainer,
@@ -9,29 +10,54 @@ import {
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
+  type ChartConfig,
 } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, LineChart, Pie, PieChart, Cell, ResponsiveContainer } from "recharts"
-import type { ChartConfig } from "@/components/ui/chart"
+import { useAuth } from "@/hooks/use-auth";
 
-const studyTimeData = [
-  { day: "Mon", hours: 2 }, { day: "Tue", hours: 3 }, { day: "Wed", hours: 1.5 },
-  { day: "Thu", hours: 4 }, { day: "Fri", hours: 2.5 }, { day: "Sat", hours: 5 }, { day: "Sun", hours: 1 },
+// Default mock data for charts if no user data is available
+const defaultStudyTimeData = [
+  { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
+  { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
 ];
-const studyTimeConfig = { hours: { label: "Study Hours", color: "hsl(var(--primary))" } } satisfies ChartConfig;
+const defaultSubjectProgressData: { name: string; value: number; fill: string }[] = [
+    { name: "No Data", value: 100, fill: "hsl(var(--muted))" },
+];
 
-const subjectProgressData = [
-  { name: "Maths", value: 75, fill: "hsl(var(--chart-1))" },
-  { name: "Physics", value: 60, fill: "hsl(var(--chart-2))" },
-  { name: "Chemistry", value: 45, fill: "hsl(var(--chart-3))" },
-  { name: "Biology", value: 80, fill: "hsl(var(--chart-4))" },
-  { name: "English", value: 90, fill: "hsl(var(--chart-5))" },
-];
-const subjectProgressConfig = Object.fromEntries(
-  subjectProgressData.map(({ name, fill }) => [name, { label: name, color: fill }])
-) satisfies ChartConfig;
+const studyTimeConfigBase = { hours: { label: "Study Hours", color: "hsl(var(--primary))" } } satisfies ChartConfig;
 
 
 export default function AnalyticsPage() {
+  const { userProfile, loading } = useAuth();
+
+  if (loading && !userProfile) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const studyTimeData = userProfile?.studyData?.weeklyStudyHours && userProfile.studyData.weeklyStudyHours.length > 0
+    ? userProfile.studyData.weeklyStudyHours
+    : defaultStudyTimeData;
+  
+  const studyTimeConfig = studyTimeConfigBase;
+
+  const subjectProgressDataRaw = userProfile?.studyData?.subjects || [];
+  const subjectProgressData = subjectProgressDataRaw.length > 0 
+    ? subjectProgressDataRaw.map((subject, index) => ({
+        name: subject.name,
+        value: subject.progress,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))` // Cycle through 5 chart colors
+      }))
+    : defaultSubjectProgressData;
+
+  const subjectProgressConfig = Object.fromEntries(
+    subjectProgressData.map(({ name, fill }) => [name, { label: name, color: fill }])
+  ) satisfies ChartConfig;
+
+
   return (
     <div className="space-y-8">
       <Card>
@@ -40,7 +66,8 @@ export default function AnalyticsPage() {
             <BarChart3 className="mr-3 h-8 w-8 text-primary" /> Smart Study Analytics
           </CardTitle>
           <CardDescription className="text-lg">
-            Track your progress, monitor learning patterns, and optimize your study efficiency. (Placeholder data shown)
+            Track your progress, monitor learning patterns, and optimize your study efficiency.
+            {(subjectProgressDataRaw.length === 0 && studyTimeData === defaultStudyTimeData) && " (Showing placeholder data as no activity is recorded yet)"}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -62,6 +89,7 @@ export default function AnalyticsPage() {
                 </LineChart>
               </ResponsiveContainer>
             </ChartContainer>
+            {studyTimeData === defaultStudyTimeData && <p className="text-xs text-muted-foreground mt-2 text-center">Log study sessions to see your weekly hours.</p>}
           </CardContent>
         </Card>
 
@@ -74,15 +102,16 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                        <Pie data={subjectProgressData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                        <Pie data={subjectProgressData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label >
                              {subjectProgressData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.fill} />
                             ))}
                         </Pie>
-                        <ChartLegend content={<ChartLegendContent nameKey="name"/>} />
+                        {subjectProgressDataRaw.length > 0 && <ChartLegend content={<ChartLegendContent nameKey="name"/>} />}
                     </PieChart>
                 </ResponsiveContainer>
              </ChartContainer>
+              {subjectProgressDataRaw.length === 0 && <p className="text-xs text-muted-foreground mt-2 text-center">Complete lessons or quizzes to see your subject progress.</p>}
           </CardContent>
         </Card>
       </div>
