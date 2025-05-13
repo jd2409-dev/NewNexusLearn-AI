@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -9,9 +10,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
 import type { SubjectProgress } from "@/lib/user-service";
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour"; // Import the tour component
+import { markOnboardingTourAsCompleted } from "@/lib/user-service"; // Import service function
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
-  const { userProfile, loading } = useAuth();
+  const { user, userProfile, loading, refreshUserProfile } = useAuth();
+  const { toast } = useToast();
+  const [showTour, setShowTour] = useState(false);
 
   const studySubjects = userProfile?.studyData?.subjects || [];
   const userXp = userProfile?.studyData?.xp || 0;
@@ -20,6 +26,31 @@ export default function DashboardPage() {
   const currentStreak = userProfile?.studyData?.currentStreak || 0;
 
   const trendingPercentage = 5.2; 
+
+  useEffect(() => {
+    if (userProfile && userProfile.studyData?.hasCompletedOnboardingTour === false && !loading) {
+      setShowTour(true);
+    }
+  }, [userProfile, loading]);
+
+  const handleTourAction = async () => {
+    if (user) {
+      try {
+        await markOnboardingTourAsCompleted(user.uid);
+        await refreshUserProfile(); // Refresh profile to get updated tour status
+        setShowTour(false);
+      } catch (error) {
+        console.error("Error updating onboarding tour status:", error);
+        toast({
+          title: "Tour Error",
+          description: "Could not save tour completion status. It might show again.",
+          variant: "destructive",
+        });
+         setShowTour(false); // Still hide the tour UI-wise
+      }
+    }
+  };
+
 
   if (loading && !userProfile) {
     return (
@@ -31,6 +62,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <OnboardingTour
+        isOpen={showTour}
+        onClose={handleTourAction} // Skip and close are treated the same: mark as completed
+        onComplete={handleTourAction}
+      />
       <section className="bg-card p-6 md:p-8 rounded-lg shadow-lg">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="md:w-2/3">
@@ -42,12 +78,12 @@ export default function DashboardPage() {
             </p>
             <div className="mt-6 flex flex-col sm:flex-row gap-3 md:gap-4">
               <Link href="/learning-paths">
-                <Button size="lg" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
                   <BookOpenText className="mr-2 h-5 w-5" /> Create Learning Path
                 </Button>
               </Link>
               <Link href="/quizzes">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
                   <Lightbulb className="mr-2 h-5 w-5" /> Start a Quiz
                 </Button>
               </Link>
@@ -136,12 +172,12 @@ export default function DashboardPage() {
             </div>
              <div className="w-full mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                  <Link href="/analytics" className="w-full">
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
                         <BarChart3 className="mr-2 h-4 w-4" /> Detailed Analytics
                     </Button>
                  </Link>
                  <Link href="/achievements" className="w-full">
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
                         <Star className="mr-2 h-4 w-4" /> View Achievements
                     </Button>
                  </Link>
@@ -174,7 +210,7 @@ function DashboardCard({ title, description, icon, href, actionText, disabled }:
       </CardContent>
       <CardFooter>
         <Link href={href} className="w-full" aria-disabled={disabled} tabIndex={disabled ? -1 : undefined}>
-          <Button variant="secondary" className="w-full" disabled={disabled}>{actionText}</Button>
+          <Button variant="secondary" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation" disabled={disabled}>{actionText}</Button>
         </Link>
       </CardFooter>
     </Card>
@@ -200,4 +236,3 @@ function StatCard({ title, value, icon }: StatCardProps) {
     </Card>
   );
 }
-

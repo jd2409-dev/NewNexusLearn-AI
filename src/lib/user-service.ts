@@ -44,6 +44,7 @@ export interface PastQuiz {
   timeLimitPerQuestion?: number | null;
   timeLeft?: number | null;
   difficultyLevel?: 'easy' | 'medium' | 'hard' | null;
+  icon?: string | null; // Ensure this matches Achievement icon type if used similarly
 }
 
 export interface StudyData {
@@ -58,6 +59,7 @@ export interface StudyData {
   achievements: Achievement[];
   currentStreak: number; // Number of consecutive days logged in
   lastLoginDate?: Timestamp; // To track daily streaks
+  hasCompletedOnboardingTour?: boolean; // New field for onboarding tour
 }
 
 export interface UserProfile {
@@ -101,6 +103,7 @@ export async function createUserProfileDocument(user: User): Promise<void> {
           achievements: [],
           currentStreak: 1,
           lastLoginDate: serverTimestamp(),
+          hasCompletedOnboardingTour: false, // Initialize tour as not completed
         }
       });
     } catch (error) {
@@ -128,6 +131,7 @@ export async function createUserProfileDocument(user: User): Promise<void> {
             achievements: [],
             currentStreak: 1,
             lastLoginDate: serverTimestamp(),
+            hasCompletedOnboardingTour: false,
         };
         needsUpdate = true;
     } else {
@@ -138,6 +142,7 @@ export async function createUserProfileDocument(user: User): Promise<void> {
         if (currentData.studyData.currentStreak === undefined) { updates['studyData.currentStreak'] = 1; needsUpdate = true; }
         if (currentData.studyData.lastLoginDate === undefined) { updates['studyData.lastLoginDate'] = serverTimestamp(); needsUpdate = true; }
         if (currentData.studyData.pastQuizzes === undefined) { updates['studyData.pastQuizzes'] = []; needsUpdate = true; }
+        if (currentData.studyData.hasCompletedOnboardingTour === undefined) { updates['studyData.hasCompletedOnboardingTour'] = false; needsUpdate = true; }
     }
 
     if (currentData.plan === null) { // If somehow plan is null, set to 'free'
@@ -205,6 +210,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
             overallProgress: 0, subjects: [], weeklyStudyHours: initialWeeklyHours,
             lastActivityDate: serverTimestamp(), pastQuizzes: [], xp: 0, level: 1, coins: 0,
             achievements: [], currentStreak: 1, lastLoginDate: serverTimestamp(),
+            hasCompletedOnboardingTour: false,
         };
         needsUpdate = true;
       } else {
@@ -215,6 +221,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
         if (profile.studyData.currentStreak === undefined) { updates['studyData.currentStreak'] = 1; needsUpdate = true; }
         if (profile.studyData.lastLoginDate === undefined) { updates['studyData.lastLoginDate'] = serverTimestamp(); needsUpdate = true; }
         if (profile.studyData.pastQuizzes === undefined) { updates['studyData.pastQuizzes'] = []; needsUpdate = true; }
+        if (profile.studyData.hasCompletedOnboardingTour === undefined) { updates['studyData.hasCompletedOnboardingTour'] = false; needsUpdate = true; }
       }
       
       if (profile.plan === null || profile.plan === undefined) {
@@ -381,6 +388,7 @@ export async function addPastQuiz(userId: string, quizData: PastQuiz): Promise<v
         timeLimitPerQuestion: quizData.timeLimitPerQuestion === undefined ? null : quizData.timeLimitPerQuestion,
         timeLeft: quizData.timeLeft === undefined ? null : quizData.timeLeft,
         difficultyLevel: quizData.difficultyLevel === undefined ? null : quizData.difficultyLevel,
+        icon: quizData.icon === undefined ? null : quizData.icon,
     };
     
     const updatedQuizzes = [sanitizedQuizData, ...(userProfile.studyData.pastQuizzes || [])];
@@ -511,4 +519,17 @@ export async function updateUserLoginStreak(userId: string): Promise<void> {
     } catch (error) {
         console.error("Error updating user login streak:", error);
     }
+}
+
+export async function markOnboardingTourAsCompleted(userId: string): Promise<void> {
+  const userProfileRef = doc(db, "userProfiles", userId);
+  try {
+    await updateDoc(userProfileRef, {
+      "studyData.hasCompletedOnboardingTour": true,
+      "studyData.lastActivityDate": serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error marking onboarding tour as completed:", error);
+    // Potentially throw error or handle it based on application needs
+  }
 }
