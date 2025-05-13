@@ -29,7 +29,6 @@ const nextConfig: NextConfig = {
       };
 
       // Fallbacks for other Node.js core modules that might be problematic on the client.
-      // 'async_hooks: false' here is redundant due to the alias above but kept for clarity.
       config.resolve.fallback = {
         ...config.resolve.fallback,
         async_hooks: false, 
@@ -44,11 +43,11 @@ const nextConfig: NextConfig = {
       // This replaces their content with null, preventing them from running or requiring Node.js specifics.
       config.module.rules.push(
         {
-          test: /@opentelemetry\/context-async-hooks/,
+          test: /@opentelemetry[\\/]context-async-hooks/,
           use: 'null-loader',
         },
         {
-          test: /@opentelemetry\/sdk-trace-node/,
+          test: /@opentelemetry[\\/]sdk-trace-node/,
           use: 'null-loader',
         }
       );
@@ -56,15 +55,15 @@ const nextConfig: NextConfig = {
       // Ignore problematic server-side modules and 'async_hooks' in client bundles.
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^@opentelemetry\/sdk-trace-node(\/.*)?$/,
+          resourceRegExp: /@opentelemetry[\\/]sdk-trace-node/, // More general regex
         }),
         new webpack.IgnorePlugin({
-          resourceRegExp: /^@opentelemetry\/context-async-hooks(\/.*)?$/,
+          resourceRegExp: /@opentelemetry[\\/]context-async-hooks/, // More general regex
         }),
         // Crucial: Ignore 'async_hooks' in any context for client builds.
         new webpack.IgnorePlugin({
           resourceRegExp: /^async_hooks$/,
-          contextRegExp: /.*/, // Apply this ignore rule in all contexts for client builds
+          contextRegExp: /.*/, 
         })
       );
     }
