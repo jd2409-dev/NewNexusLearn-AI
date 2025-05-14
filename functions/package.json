@@ -1,6 +1,7 @@
 {
-  "name": "functions",
+  "main": "lib/index.js",
   "scripts": {
+    "genkit:start": "genkit start -- tsx --watch src/genkit-sample.ts",
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -8,13 +9,12 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log",
-    "genkit:start": "genkit start -- tsx --watch src/genkit-sample.ts"
+    "logs": "firebase functions:log"
   },
+  "name": "functions",
   "engines": {
     "node": "22"
   },
-  "main": "lib/index.js",
   "dependencies": {
     "@genkit-ai/firebase": "^1.8.0",
     "@genkit-ai/vertexai": "^1.8.0",
