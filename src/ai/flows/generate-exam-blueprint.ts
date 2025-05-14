@@ -53,7 +53,19 @@ const generateExamBlueprintFlow = ai.defineFlow(
     outputSchema: GenerateExamBlueprintOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        console.error("generateExamBlueprintFlow: Prompt returned undefined output for input:", input);
+        throw new Error("AI model failed to generate a blueprint. Output was undefined.");
+      }
+      return output;
+    } catch (e) {
+      console.error("Error in generateExamBlueprintFlow with input:", input, "Error:", e);
+      // Re-throw the error so it's still treated as a failure by Genkit/Next.js,
+      // but we've logged it more specifically here.
+      throw new Error(`Failed to generate exam blueprint: ${(e as Error).message}`);
+    }
   }
 );
+
