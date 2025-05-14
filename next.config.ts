@@ -16,6 +16,11 @@ const nextConfig = {
         'pg-native': false,   // Example if 'pg' library is used
         // Add other Node.js core modules here if similar errors appear
       };
+      // Alias the specific OpenTelemetry module causing issues on the client
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        '@opentelemetry/context-async-hooks': false,
+      };
     }
     
     return config;
