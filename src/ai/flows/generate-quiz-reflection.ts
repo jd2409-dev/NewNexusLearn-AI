@@ -9,7 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { gemini15Pro } from '@genkit-ai/googleai';
+import { gemini15Flash } from '@genkit-ai/googleai'; // Changed from gemini15Pro
 import type { PastQuizQuestionDetail as PastQuizQuestionDetailType } from '@/lib/user-service'; // Assuming type is exported
 import type { QuestionType } from '@/ai/flows/generate-interactive-quiz';
 
@@ -58,7 +58,7 @@ const formatIncorrectQuestions = (questions: PastQuizQuestionDetailType[]): stri
 
 const prompt = ai.definePrompt({
   name: 'generateQuizReflectionPrompt',
-  model: gemini15Pro,
+  model: gemini15Flash, // Changed from gemini15Pro
   input: {schema: GenerateQuizReflectionInputSchema},
   output: {schema: GenerateQuizReflectionOutputSchema},
   prompt: `You are an expert AI study coach. A student has completed a quiz titled "{{quizName}}"{{#if difficultyLevel}} with a difficulty of "{{difficultyLevel}}"{{/if}}.
