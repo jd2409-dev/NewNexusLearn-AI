@@ -10,7 +10,7 @@ const nextConfig = {
         fs: false,
         net: false,
         tls: false,
-        dns: false, 
+        dns: false,
         http2: false,
         child_process: false, // Often needed for server-side libraries
         perf_hooks: false,    // Related to performance monitoring
@@ -24,7 +24,7 @@ const nextConfig = {
         '@opentelemetry/sdk-trace-node': false, // Add alias for the parent Node SDK
       };
     }
-    
+
     return config;
   },
   images: {
