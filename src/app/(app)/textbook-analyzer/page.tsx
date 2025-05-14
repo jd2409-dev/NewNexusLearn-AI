@@ -123,7 +123,7 @@ export default function TextbookAnalyzerPage() {
         <CardContent className="space-y-6">
           <div>
             <Label htmlFor="pdf-upload">Upload Textbook (PDF)</Label>
-            <Input id="pdf-upload" type="file" accept=".pdf" onChange={handleFileChange} className="mt-1" />
+            <Input id="pdf-upload" type="file" accept=".pdf" onChange={handleFileChange} className="mt-1" disabled={isLoadingAnalysis || isLoadingSummary} />
             {pdfFile && <p className="text-sm text-muted-foreground mt-2">Selected: {pdfFile.name}</p>}
           </div>
 
@@ -137,9 +137,10 @@ export default function TextbookAnalyzerPage() {
                 placeholder="e.g., What is mitosis?"
                 className="mt-1"
                 rows={3}
+                disabled={isLoadingAnalysis || isLoadingSummary}
               />
             </div>
-            <Button type="submit" disabled={isLoadingAnalysis || !pdfDataUri || !question} className="w-full sm:w-auto">
+            <Button type="submit" disabled={isLoadingAnalysis || isLoadingSummary || !pdfDataUri || !question} className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
               {isLoadingAnalysis && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <ScanSearch className="mr-2 h-4 w-4" /> Find Answer
             </Button>
@@ -167,7 +168,7 @@ export default function TextbookAnalyzerPage() {
             <CardDescription>Generate various study aids from your uploaded PDF.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <Button onClick={handleGenerateSummary} disabled={isLoadingSummary || !pdfDataUri} className="w-full md:w-auto">
+            <Button onClick={handleGenerateSummary} disabled={isLoadingSummary || isLoadingAnalysis || !pdfDataUri} className="w-full md:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
               {isLoadingSummary && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <FileText className="mr-2 h-4 w-4" /> Generate Text Summary
             </Button>

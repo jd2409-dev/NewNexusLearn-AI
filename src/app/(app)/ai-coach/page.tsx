@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -72,11 +73,12 @@ export default function AiCoachPage() {
                 placeholder="e.g., I don't understand how to solve quadratic equations by factoring."
                 className="mt-1 min-h-[120px]"
                 rows={5}
+                disabled={isLoading}
               />
             </div>
             <div>
               <Label htmlFor="student-level">Your Academic Level:</Label>
-              <Select value={studentLevel} onValueChange={setStudentLevel}>
+              <Select value={studentLevel} onValueChange={setStudentLevel} disabled={isLoading}>
                 <SelectTrigger id="student-level" className="mt-1">
                   <SelectValue placeholder="Select your level" />
                 </SelectTrigger>
@@ -89,7 +91,7 @@ export default function AiCoachPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={isLoading || !problem || !studentLevel} className="w-full sm:w-auto">
+            <Button type="submit" disabled={isLoading || !problem || !studentLevel} className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Sparkles className="mr-2 h-4 w-4" /> Get Help from AI Coach
             </Button>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -91,7 +92,7 @@ export default function WritingAssistantPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={isLoading || !text} className="w-full sm:w-auto">
+            <Button type="submit" disabled={isLoading || !text} className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Sparkles className="mr-2 h-4 w-4" /> Get Feedback
             </Button>

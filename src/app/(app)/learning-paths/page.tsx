@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -73,7 +74,7 @@ export default function LearningPathsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="board">School Board</Label>
-                <Select value={board} onValueChange={setBoard}>
+                <Select value={board} onValueChange={setBoard} disabled={isLoading}>
                   <SelectTrigger id="board" className="mt-1">
                     <SelectValue placeholder="Select board" />
                   </SelectTrigger>
@@ -84,7 +85,7 @@ export default function LearningPathsPage() {
               </div>
               <div>
                 <Label htmlFor="subject">Subject</Label>
-                <Select value={subject} onValueChange={setSubject}>
+                <Select value={subject} onValueChange={setSubject} disabled={isLoading}>
                   <SelectTrigger id="subject" className="mt-1">
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
@@ -103,12 +104,13 @@ export default function LearningPathsPage() {
                 placeholder="e.g., Algebra, Calculus, Geometry"
                 className="mt-1"
                 rows={3}
+                disabled={isLoading}
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="exam-type">Exam Type</Label>
-                <Select value={examType} onValueChange={setExamType}>
+                <Select value={examType} onValueChange={setExamType} disabled={isLoading}>
                   <SelectTrigger id="exam-type" className="mt-1">
                     <SelectValue placeholder="Select exam type" />
                   </SelectTrigger>
@@ -119,7 +121,7 @@ export default function LearningPathsPage() {
               </div>
               <div>
                 <Label htmlFor="difficulty">Difficulty Level</Label>
-                <Select value={difficultyLevel} onValueChange={setDifficultyLevel}>
+                <Select value={difficultyLevel} onValueChange={setDifficultyLevel} disabled={isLoading}>
                   <SelectTrigger id="difficulty" className="mt-1">
                     <SelectValue placeholder="Select difficulty" />
                   </SelectTrigger>
@@ -129,7 +131,7 @@ export default function LearningPathsPage() {
                 </Select>
               </div>
             </div>
-            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Route className="mr-2 h-4 w-4" /> Generate Learning Path
             </Button>

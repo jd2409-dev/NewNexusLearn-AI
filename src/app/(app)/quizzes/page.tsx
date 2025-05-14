@@ -332,7 +332,7 @@ export default function QuizzesPage() {
           <form onSubmit={handleGenerateQuiz} className="space-y-6">
             <div>
               <Label htmlFor="pdf-upload-quiz">Upload PDF for Quiz</Label>
-              <Input id="pdf-upload-quiz" type="file" accept=".pdf" onChange={handleFileChange} className="mt-1" />
+              <Input id="pdf-upload-quiz" type="file" accept=".pdf" onChange={handleFileChange} className="mt-1" disabled={isLoadingQuizGeneration} />
               {pdfFile && <p className="text-sm text-muted-foreground mt-2">Selected: {pdfFile.name}</p>}
             </div>
             
@@ -351,11 +351,12 @@ export default function QuizzesPage() {
                     }
                   }}
                   min="1" max="20" className="mt-1"
+                  disabled={isLoadingQuizGeneration}
                 />
               </div>
               <div>
                 <Label htmlFor="difficulty-level">Difficulty Level</Label>
-                <Select value={difficultyLevel} onValueChange={(val) => setDifficultyLevel(val as GenerateInteractiveQuizInput['difficultyLevel'])}>
+                <Select value={difficultyLevel} onValueChange={(val) => setDifficultyLevel(val as GenerateInteractiveQuizInput['difficultyLevel'])} disabled={isLoadingQuizGeneration}>
                   <SelectTrigger id="difficulty-level" className="mt-1">
                     <SelectValue placeholder="Select difficulty" />
                   </SelectTrigger>
@@ -379,6 +380,7 @@ export default function QuizzesPage() {
                                         checked ? [...prev, type.id] : prev.filter(t => t !== type.id)
                                     );
                                 }}
+                                disabled={isLoadingQuizGeneration}
                             />
                             <Label htmlFor={`qtype-${type.id}`} className="font-normal cursor-pointer">{type.label}</Label>
                         </div>
@@ -388,7 +390,7 @@ export default function QuizzesPage() {
 
             <div>
               <div className="flex items-center space-x-2">
-                  <Checkbox id="timed-mode" checked={isTimedModeEnabled} onCheckedChange={(checked) => setIsTimedModeEnabled(checked as boolean)} />
+                  <Checkbox id="timed-mode" checked={isTimedModeEnabled} onCheckedChange={(checked) => setIsTimedModeEnabled(checked as boolean)} disabled={isLoadingQuizGeneration} />
                   <Label htmlFor="timed-mode" className="cursor-pointer">Enable Timed Mode</Label>
               </div>
               {isTimedModeEnabled && (
@@ -405,12 +407,13 @@ export default function QuizzesPage() {
                         }
                       }}
                       min="1" className="mt-1"
+                      disabled={isLoadingQuizGeneration}
                   />
                   </div>
               )}
             </div>
 
-            <Button type="submit" disabled={isLoadingQuizGeneration || !pdfDataUri || selectedQuestionTypes.length === 0} className="w-full">
+            <Button type="submit" disabled={isLoadingQuizGeneration || !pdfDataUri || selectedQuestionTypes.length === 0} className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
               {isLoadingQuizGeneration && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <FilePlus className="mr-2 h-4 w-4" /> Generate Quiz
             </Button>
@@ -489,7 +492,7 @@ export default function QuizzesPage() {
                     isEndingEarly || isSavingFinalResults ||
                     ((currentQuestion.type === 'mcq' || currentQuestion.type === 'trueFalse') && !selectedRadioAnswer) ||
                     ((currentQuestion.type === 'fillInTheBlanks' || currentQuestion.type === 'shortAnswer') && !textInputAnswer.trim())
-                }>
+                } className="transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
                 <Zap className="mr-2 h-4 w-4" /> Submit Answer
               </Button>
             ) : (
@@ -506,12 +509,12 @@ export default function QuizzesPage() {
                   </div>
                 )}
                 {currentQuestionIndex < quiz.questions.length - 1 ? (
-                  <Button onClick={handleNextQuestion} className="w-full" disabled={isEndingEarly || isSavingFinalResults}>Next Question</Button>
+                  <Button onClick={handleNextQuestion} className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation" disabled={isEndingEarly || isSavingFinalResults}>Next Question</Button>
                 ) : null}
               </div>
             )}
              {isQuizActive && !showFeedback && quiz && currentQuestionIndex < quiz.questions.length && ( 
-                <Button onClick={handleEndTestEarly} variant="outline" className="w-full mt-2" disabled={isEndingEarly || isSavingFinalResults}>
+                <Button onClick={handleEndTestEarly} variant="outline" className="w-full mt-2 transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation" disabled={isEndingEarly || isSavingFinalResults}>
                     {isEndingEarly && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <StopCircle className="mr-2 h-4 w-4" /> End Test Early
                 </Button>
@@ -524,7 +527,7 @@ export default function QuizzesPage() {
                         setIsSavingFinalResults(false);
                         resetQuizState(true); 
                     }} 
-                    className="w-full mt-4" 
+                    className="w-full mt-4 transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation" 
                     disabled={isSavingFinalResults || isEndingEarly}
                 >
                     {isSavingFinalResults && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -542,11 +545,11 @@ export default function QuizzesPage() {
             </CardTitle>
             <CardDescription className="text-lg">Your score: {score} out of {quiz.questions.length}</CardDescription>
             <div className="mt-4 space-y-2 sm:space-y-0 sm:space-x-2 flex flex-col sm:flex-row justify-center">
-                <Button onClick={() => { resetQuizState(true); }} className="w-full sm:w-auto">
+                <Button onClick={() => { resetQuizState(true); }} className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
                     <ShieldQuestion className="mr-2 h-4 w-4" /> Try Another Quiz
                 </Button>
                 <Link href="/reflection" className="w-full sm:w-auto">
-                    <Button variant="outline" className="w-full">View Reflections</Button>
+                    <Button variant="outline" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">View Reflections</Button>
                 </Link>
             </div>
           </Card>
@@ -554,4 +557,3 @@ export default function QuizzesPage() {
     </div>
   );
 }
-
