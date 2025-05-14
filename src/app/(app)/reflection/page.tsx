@@ -1,17 +1,18 @@
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Loader2, FileClock, Sparkles, CheckCircle2, AlertCircle, Info, Timer, BarChartHorizontal, Puzzle } from "lucide-react";
 import type { PastQuiz, PastQuizQuestionDetail } from "@/lib/user-service";
-import { generateQuizReflection, type GenerateQuizReflectionOutput } from "@/ai/flows/generate-quiz-reflection";
+import { generateQuizReflection } from "@/ai/flows/generate-quiz-reflection";
 import { updatePastQuizReflection } from "@/lib/user-service";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
-import { Badge } from "@/components/ui/badge"; // Import Badge
+import { Badge } from "@/components/ui/badge";
 
 const questionTypeLabels: Record<PastQuizQuestionDetail['questionType'], string> = {
   mcq: "MCQ",
@@ -20,10 +21,46 @@ const questionTypeLabels: Record<PastQuizQuestionDetail['questionType'], string>
   shortAnswer: "Short Answer",
 };
 
+interface MemoizedPastQuizQuestionCardProps {
+  questionDetail: PastQuizQuestionDetail;
+  index: number;
+}
+
+const MemoizedPastQuizQuestionCard = memo(function PastQuizQuestionCard({ questionDetail: q, index }: MemoizedPastQuizQuestionCardProps) {
+  return (
+    <Card className={`mb-3 p-4 ${q.isCorrect ? 'border-green-500/50 bg-green-500/5' : 'border-red-500/50 bg-red-500/5'}`}>
+      <div className="flex justify-between items-start mb-1">
+          <p className="font-medium">Q{index + 1}: {q.questionText}</p>
+          <Badge variant="secondary" className="text-xs ml-2 shrink-0">
+              <Puzzle className="h-3 w-3 mr-1"/>{questionTypeLabels[q.questionType] || q.questionType}
+          </Badge>
+      </div>
+      <p className="text-sm">Your answer: <span className={q.isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{q.userAnswer || "Not Answered"}</span></p>
+      {!q.isCorrect && <p className="text-sm">Correct answer: {q.correctAnswer}</p>}
+      {q.questionType === "mcq" && q.options && q.options.length > 0 && (
+        <div className="mt-1 text-xs text-muted-foreground">
+            Options: {q.options.join(" | ")}
+        </div>
+      )}
+      <div className="mt-1">
+        {q.isCorrect ? 
+            <CheckCircle2 className="h-5 w-5 text-green-500 inline-block mr-1" /> :
+            <AlertCircle className="h-5 w-5 text-red-500 inline-block mr-1" /> 
+        }
+        <span className={`text-sm font-semibold ${q.isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+            {q.isCorrect ? "Correct" : "Incorrect"}
+        </span>
+      </div>
+    </Card>
+  );
+});
+MemoizedPastQuizQuestionCard.displayName = 'MemoizedPastQuizQuestionCard';
+
+
 export default function ReflectionPage() {
   const { user, userProfile, loading: authLoading, refreshUserProfile } = useAuth();
   const [pastQuizzes, setPastQuizzes] = useState<PastQuiz[]>([]);
-  const [isLoadingReflection, setIsLoadingReflection] = useState<Record<string, boolean>>({}); // quizId: isLoading
+  const [isLoadingReflection, setIsLoadingReflection] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,7 +81,7 @@ export default function ReflectionPage() {
       const result = await generateQuizReflection({
         quizName: quiz.quizName,
         questions: quiz.questions,
-        difficultyLevel: quiz.difficultyLevel, // Pass difficulty
+        difficultyLevel: quiz.difficultyLevel,
       });
       await updatePastQuizReflection(user.uid, quiz.id, result.reflectionText);
       await refreshUserProfile(); 
@@ -146,30 +183,7 @@ export default function ReflectionPage() {
                     <div>
                       <h4 className="font-semibold mb-2 text-lg">Quiz Details:</h4>
                       {quiz.questions.map((q, index) => (
-                        <Card key={index} className={`mb-3 p-4 ${q.isCorrect ? 'border-green-500/50 bg-green-500/5' : 'border-red-500/50 bg-red-500/5'}`}>
-                            <div className="flex justify-between items-start mb-1">
-                                <p className="font-medium">Q{index + 1}: {q.questionText}</p>
-                                <Badge variant="secondary" className="text-xs ml-2 shrink-0">
-                                    <Puzzle className="h-3 w-3 mr-1"/>{questionTypeLabels[q.questionType] || q.questionType}
-                                </Badge>
-                            </div>
-                          <p className="text-sm">Your answer: <span className={q.isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{q.userAnswer || "Not Answered"}</span></p>
-                          {!q.isCorrect && <p className="text-sm">Correct answer: {q.correctAnswer}</p>}
-                          {q.questionType === "mcq" && q.options && q.options.length > 0 && (
-                            <div className="mt-1 text-xs text-muted-foreground">
-                                Options: {q.options.join(" | ")}
-                            </div>
-                          )}
-                          <div className="mt-1">
-                            {q.isCorrect ? 
-                                <CheckCircle2 className="h-5 w-5 text-green-500 inline-block mr-1" /> :
-                                <AlertCircle className="h-5 w-5 text-red-500 inline-block mr-1" /> 
-                            }
-                            <span className={`text-sm font-semibold ${q.isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                                {q.isCorrect ? "Correct" : "Incorrect"}
-                            </span>
-                          </div>
-                        </Card>
+                        <MemoizedPastQuizQuestionCard key={index} questionDetail={q} index={index} />
                       ))}
                     </div>
                     <div className="pt-2">
@@ -182,7 +196,7 @@ export default function ReflectionPage() {
                         <Button
                           onClick={() => handleGenerateReflection(quiz)}
                           disabled={isLoadingReflection[quiz.id]}
-                          className="w-full sm:w-auto"
+                          className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation"
                         >
                           {isLoadingReflection[quiz.id] && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           <Sparkles className="mr-2 h-4 w-4" /> Get AI Reflection
@@ -206,4 +220,3 @@ export default function ReflectionPage() {
     </div>
   );
 }
-

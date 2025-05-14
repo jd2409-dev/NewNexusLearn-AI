@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,9 +10,61 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
 import type { SubjectProgress } from "@/lib/user-service";
-import { OnboardingTour } from "@/components/onboarding/onboarding-tour"; // Import the tour component
-import { markOnboardingTourAsCompleted } from "@/lib/user-service"; // Import service function
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
+import { markOnboardingTourAsCompleted } from "@/lib/user-service";
 import { useToast } from "@/hooks/use-toast";
+
+interface DashboardCardProps {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  href: string;
+  actionText: string;
+  disabled?: boolean;
+}
+
+function DashboardCard({ title, description, icon, href, actionText, disabled }: DashboardCardProps) {
+  return (
+    <Card className="hover:shadow-primary/10 transition-shadow h-full flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-lg font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent className="flex-grow">
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardContent>
+      <CardFooter>
+        <Link href={href} className="w-full" aria-disabled={disabled} tabIndex={disabled ? -1 : undefined}>
+          <Button variant="secondary" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation" disabled={disabled}>{actionText}</Button>
+        </Link>
+      </CardFooter>
+    </Card>
+  );
+}
+const MemoizedDashboardCard = memo(DashboardCard);
+
+
+interface StatCardProps {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+}
+
+function StatCard({ title, value, icon }: StatCardProps) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+const MemoizedStatCard = memo(StatCard);
+
 
 export default function DashboardPage() {
   const { user, userProfile, loading, refreshUserProfile } = useAuth();
@@ -35,7 +87,7 @@ export default function DashboardPage() {
     if (user) {
       try {
         await markOnboardingTourAsCompleted(user.uid);
-        await refreshUserProfile(); // Refresh profile to get updated tour status
+        await refreshUserProfile(); 
         setShowTour(false);
       } catch (error) {
         console.error("Error updating onboarding tour status:", error);
@@ -44,7 +96,7 @@ export default function DashboardPage() {
           description: "Could not save tour completion status. It might show again.",
           variant: "destructive",
         });
-         setShowTour(false); // Still hide the tour UI-wise
+         setShowTour(false); 
       }
     }
   };
@@ -62,7 +114,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <OnboardingTour
         isOpen={showTour}
-        onClose={handleTourAction} // Skip and close are treated the same: mark as completed
+        onClose={handleTourAction} 
         onComplete={handleTourAction}
       />
       <section className="bg-card p-6 md:p-8 rounded-lg shadow-lg">
@@ -89,7 +141,7 @@ export default function DashboardPage() {
           </div>
           <div className="md:w-1/3 flex justify-center mt-6 md:mt-0">
             <Image 
-              src="https://picsum.photos/300/300?random=dashboard" 
+              src="https://placehold.co/200x200.png" 
               alt="AI Learning Illustration"
               data-ai-hint="AI learning" 
               width={200} 
@@ -103,31 +155,31 @@ export default function DashboardPage() {
       <section>
         <h2 className="text-2xl font-semibold mb-4">Your Gamified Stats</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="XP Points" value={userXp.toLocaleString()} icon={<XPIcon className="text-accent" />} />
-          <StatCard title="Level" value={userLevel.toString()} icon={<LevelIcon className="text-accent" />} />
-          <StatCard title="Coins" value={userCoins.toLocaleString()} icon={<Gem className="text-accent" />} />
-          <StatCard title="Daily Streak" value={`${currentStreak} Day${currentStreak === 1 ? '' : 's'}`} icon={<Zap className="text-accent" />} />
+          <MemoizedStatCard title="XP Points" value={userXp.toLocaleString()} icon={<XPIcon className="text-accent" />} />
+          <MemoizedStatCard title="Level" value={userLevel.toString()} icon={<LevelIcon className="text-accent" />} />
+          <MemoizedStatCard title="Coins" value={userCoins.toLocaleString()} icon={<Gem className="text-accent" />} />
+          <MemoizedStatCard title="Daily Streak" value={`${currentStreak} Day${currentStreak === 1 ? '' : 's'}`} icon={<Zap className="text-accent" />} />
         </div>
       </section>
 
       <section>
         <h2 className="text-2xl font-semibold mb-4">Quick Access</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <DashboardCard
+          <MemoizedDashboardCard
             title="Textbook Analyzer"
             description="Scan PDFs, find answers, and generate summaries."
             icon={<UploadCloud className="h-8 w-8 text-primary" />}
             href="/textbook-analyzer"
             actionText="Analyze Now"
           />
-          <DashboardCard
+          <MemoizedDashboardCard
             title="Exam Preparation"
             description="Simulate exams and practice for specific boards."
             icon={<ClipboardCheck className="h-8 w-8 text-primary" />}
             href="/exam-prep"
             actionText="Prepare for Exam"
           />
-          <DashboardCard
+          <MemoizedDashboardCard
             title="AI Study Coach"
             description="Get real-time assistance and explanations."
             icon={<Brain className="h-8 w-8 text-primary" />}
@@ -179,53 +231,5 @@ export default function DashboardPage() {
         </Card>
       </section>
     </div>
-  );
-}
-
-interface DashboardCardProps {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  href: string;
-  actionText: string;
-  disabled?: boolean;
-}
-
-function DashboardCard({ title, description, icon, href, actionText, disabled }: DashboardCardProps) {
-  return (
-    <Card className="hover:shadow-primary/10 transition-shadow h-full flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardContent>
-      <CardFooter>
-        <Link href={href} className="w-full" aria-disabled={disabled} tabIndex={disabled ? -1 : undefined}>
-          <Button variant="secondary" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation" disabled={disabled}>{actionText}</Button>
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-}
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-}
-
-function StatCard({ title, value, icon }: StatCardProps) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
   );
 }
