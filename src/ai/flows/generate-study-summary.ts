@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { geminiPro } from '@genkit-ai/googleai';
+import { gemini15Pro } from '@genkit-ai/googleai';
 
 const GenerateStudySummaryInputSchema = z.object({
   pdfDataUri: z
@@ -33,7 +33,7 @@ export async function generateStudySummary(input: GenerateStudySummaryInput): Pr
 
 const prompt = ai.definePrompt({
   name: 'generateStudySummaryPrompt',
-  model: geminiPro,
+  model: gemini15Pro,
   input: {schema: GenerateStudySummaryInputSchema},
   output: {schema: GenerateStudySummaryOutputSchema},
   prompt: `You are an expert tutor specializing in creating study notes from textbooks.

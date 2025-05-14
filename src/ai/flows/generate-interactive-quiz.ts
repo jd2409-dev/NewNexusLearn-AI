@@ -12,7 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { geminiPro } from '@genkit-ai/googleai';
+import { gemini15Pro } from '@genkit-ai/googleai';
 
 const QuestionTypeEnum = z.enum(['mcq', 'trueFalse', 'fillInTheBlanks', 'shortAnswer']);
 export type QuestionType = z.infer<typeof QuestionTypeEnum>;
@@ -26,7 +26,7 @@ const GenerateInteractiveQuizInputSchema = z.object({
   numberOfQuestions: z
     .number()
     .min(1)
-    .max(20) // Updated max value
+    .max(20) 
     .default(5)
     .describe('The number of quiz questions to generate.'),
   difficultyLevel: z.enum(['easy', 'medium', 'hard']).default('medium').optional()
@@ -58,7 +58,7 @@ export async function generateInteractiveQuiz(input: GenerateInteractiveQuizInpu
 
 const prompt = ai.definePrompt({
   name: 'generateInteractiveQuizPrompt',
-  model: geminiPro,
+  model: gemini15Pro,
   input: {schema: GenerateInteractiveQuizInputSchema},
   output: {schema: GenerateInteractiveQuizOutputSchema},
   prompt: `You are an expert educator specializing in creating quizzes.
