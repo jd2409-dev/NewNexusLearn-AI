@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { geminiPro } from '@genkit-ai/googleai';
 
 const GenerateExamBlueprintInputSchema = z.object({
   board: z.string().describe('The school board (e.g., CBSE, ICSE, GCSE, IB, state boards).'),
@@ -31,6 +32,7 @@ export async function generateExamBlueprint(input: GenerateExamBlueprintInput): 
 
 const prompt = ai.definePrompt({
   name: 'generateExamBlueprintPrompt',
+  model: geminiPro,
   input: {schema: GenerateExamBlueprintInputSchema},
   output: {schema: GenerateExamBlueprintOutputSchema},
   prompt: `You are an expert in creating exam blueprints for various school boards and subjects. Based on the provided information, create a detailed study plan blueprint.
@@ -68,4 +70,3 @@ const generateExamBlueprintFlow = ai.defineFlow(
     }
   }
 );
-

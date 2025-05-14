@@ -4,6 +4,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { geminiPro } from '@genkit-ai/googleai';
 
 const AnalyzeTextbookDataInputSchema = z.object({
   pdfDataUri: z
@@ -27,6 +28,7 @@ export async function analyzeTextbookData(input: AnalyzeTextbookDataInput): Prom
 
 const prompt = ai.definePrompt({
   name: 'analyzeTextbookDataPrompt',
+  model: geminiPro,
   input: {schema: AnalyzeTextbookDataInputSchema},
   output: {schema: AnalyzeTextbookDataOutputSchema},
   prompt: `You are an expert at extracting information from textbooks. A student will provide you with a textbook and a question.  You will respond with the direct answer to the question found within the textbook, and the page numbers where the answer was found.

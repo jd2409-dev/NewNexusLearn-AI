@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { geminiPro } from '@genkit-ai/googleai';
 
 const ProvideWritingAssistanceInputSchema = z.object({
   text: z.string().describe('The text (essay, report, etc.) to be analyzed.'),
@@ -31,6 +32,7 @@ export async function provideWritingAssistance(input: ProvideWritingAssistanceIn
 
 const prompt = ai.definePrompt({
   name: 'provideWritingAssistancePrompt',
+  model: geminiPro,
   input: {schema: ProvideWritingAssistanceInputSchema},
   output: {schema: ProvideWritingAssistanceOutputSchema},
   prompt: `You are an expert writing tutor. A student has submitted a piece of text and is looking for feedback.
@@ -67,4 +69,3 @@ const provideWritingAssistanceFlow = ai.defineFlow(
     return output!;
   }
 );
-

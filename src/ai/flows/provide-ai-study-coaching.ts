@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { geminiPro } from '@genkit-ai/googleai';
 
 const ProvideAiStudyCoachingInputSchema = z.object({
   problem: z.string().describe('The problem the student is stuck on.'),
@@ -28,6 +29,7 @@ export async function provideAiStudyCoaching(input: ProvideAiStudyCoachingInput)
 
 const prompt = ai.definePrompt({
   name: 'provideAiStudyCoachingPrompt',
+  model: geminiPro,
   input: {schema: ProvideAiStudyCoachingInputSchema},
   output: {schema: ProvideAiStudyCoachingOutputSchema},
   prompt: `You are an AI study coach that provides step-by-step explanations to students who are stuck on a problem.
