@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, TrendingUp, Activity, Loader2, Gem, Target as LevelIcon, Award as XPIcon, Star } from "lucide-react";
+import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, Activity, Loader2, Gem, Target as LevelIcon, Award as XPIcon, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,8 +24,6 @@ export default function DashboardPage() {
   const userLevel = userProfile?.studyData?.level || 1;
   const userCoins = userProfile?.studyData?.coins || 0;
   const currentStreak = userProfile?.studyData?.currentStreak || 0;
-
-  const trendingPercentage = 5.2; 
 
   useEffect(() => {
     if (userProfile && userProfile.studyData?.hasCompletedOnboardingTour === false && !loading) {
@@ -162,11 +160,6 @@ export default function DashboardPage() {
             )}
           </CardContent>
            <CardFooter className="flex-col items-start gap-2 text-sm">
-            {studySubjects.length > 0 && (
-                <div className="flex gap-2 font-medium leading-none items-center">
-                 <TrendingUp className="h-4 w-4 text-green-500" /> Trending up by {trendingPercentage}% this month
-                </div>
-            )}
             <div className="leading-none text-muted-foreground">
               Showing overall syllabus coverage based on your activity.
             </div>

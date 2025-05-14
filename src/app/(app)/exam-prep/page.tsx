@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,18 +44,6 @@ export default function ExamPrepPage() {
               }
             />
           </div>
-          
-          <Card className="bg-card-foreground/5">
-            <CardHeader>
-                <CardTitle className="flex items-center"><BarChartBig className="mr-2 h-5 w-5 text-accent"/> Estimated Performance (Coming Soon)</CardTitle>
-                <CardDescription>AI will estimate your potential results based on your learning patterns and practice scores.</CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-                <Image src="https://picsum.photos/600/300?random=graph" data-ai-hint="data graph" alt="Performance graph placeholder" width={600} height={300} className="rounded-md mx-auto shadow-md object-cover" />
-                <p className="mt-4 text-muted-foreground">This feature is under development. Stay tuned!</p>
-            </CardContent>
-          </Card>
-
         </CardContent>
       </Card>
     </div>

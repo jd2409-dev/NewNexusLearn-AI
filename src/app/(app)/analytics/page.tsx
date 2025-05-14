@@ -115,17 +115,6 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center"><Clock className="mr-2 h-5 w-5 text-accent" /> Study-Rest Cycle Suggestions (Coming Soon)</CardTitle>
-          <CardDescription>AI will analyze your patterns to suggest optimal study and break times for better retention.</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <Image src="https://picsum.photos/600/250?random=cycle" data-ai-hint="time management schedule" alt="Study cycle placeholder" width={600} height={250} className="rounded-md mx-auto shadow-md object-cover" />
-          <p className="mt-4 text-muted-foreground">This feature is in active development.</p>
-        </CardContent>
-      </Card>
     </div>
   );
 }

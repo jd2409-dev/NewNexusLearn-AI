@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -10,8 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { analyzeTextbookData, type AnalyzeTextbookDataOutput } from "@/ai/flows/analyze-textbook-data";
 import { generateStudySummary, type GenerateStudySummaryOutput } from "@/ai/flows/generate-study-summary";
 import { fileToDataUri } from "@/lib/file-utils";
-import { Loader2, ScanSearch, FileText, Ear, Brain, Film } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, ScanSearch, FileText } from "lucide-react";
 
 export default function TextbookAnalyzerPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -111,14 +111,6 @@ export default function TextbookAnalyzerPage() {
     }
   };
 
-  const handleAdvancedFeatureClick = (featureName: string) => {
-     toast({
-        title: "Coming Soon",
-        description: `${featureName} will be available soon.`,
-        variant: "default",
-      });
-  }
-
   return (
     <div className="space-y-8">
       <Card>
@@ -191,27 +183,10 @@ export default function TextbookAnalyzerPage() {
                 </CardContent>
                 </Card>
             )}
-            <div className="pt-4">
-              <Label className="text-base font-semibold">Advanced Summaries</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                  <Button variant="outline" disabled={!pdfDataUri} onClick={() => handleAdvancedFeatureClick("Audio Summary")} className="w-full relative">
-                      <Ear className="mr-2 h-4 w-4" /> Audio Summary
-                      <Badge variant="outline" className="absolute top-1 right-1 text-xs px-1 py-0">Soon</Badge>
-                  </Button>
-                  <Button variant="outline" disabled={!pdfDataUri} onClick={() => handleAdvancedFeatureClick("Mind Map")} className="w-full relative">
-                      <Brain className="mr-2 h-4 w-4" /> Mind Map
-                       <Badge variant="outline" className="absolute top-1 right-1 text-xs px-1 py-0">Soon</Badge>
-                  </Button>
-                  <Button variant="outline" disabled={!pdfDataUri} onClick={() => handleAdvancedFeatureClick("Video Explanation")} className="w-full relative">
-                      <Film className="mr-2 h-4 w-4" /> Video Explanation
-                       <Badge variant="outline" className="absolute top-1 right-1 text-xs px-1 py-0">Soon</Badge>
-                  </Button>
-              </div>
-            </div>
         </CardContent>
          <CardFooter>
             <p className="text-xs text-muted-foreground">
-                Text summaries are available for all users. Advanced summary formats are coming soon.
+                Text summaries are generated based on the content of your PDF.
             </p>
           </CardFooter>
       </Card>
