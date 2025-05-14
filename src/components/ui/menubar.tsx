@@ -60,7 +60,7 @@ const MenubarTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       "flex cursor-default select-none items-center rounded-sm px-3 py-1.5 text-sm font-medium outline-none focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98] touch-manipulation",
       className
     )}
     {...props}
@@ -78,7 +78,7 @@ const MenubarSubTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] touch-manipulation",
       inset && "pl-8",
       className
     )}
@@ -140,7 +140,7 @@ const MenubarItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01] touch-manipulation",
       inset && "pl-8",
       className
     )}
@@ -157,7 +157,7 @@ const MenubarCheckboxItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01] touch-manipulation",
       className
     )}
     checked={checked}
@@ -181,7 +181,7 @@ const MenubarRadioItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01] touch-manipulation",
       className
     )}
     {...props}

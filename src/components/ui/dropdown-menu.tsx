@@ -29,7 +29,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       "flex cursor-default gap-2 select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent data-[state=open]:bg-accent [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] touch-manipulation",
       inset && "pl-8",
       className
     )}
@@ -86,7 +86,7 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01] touch-manipulation",
       inset && "pl-8",
       className
     )}
@@ -103,7 +103,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01] touch-manipulation",
       className
     )}
     checked={checked}
@@ -128,7 +128,7 @@ const DropdownMenuRadioItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      "transform transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01]",
+      "transform transition-[transform,background-color] duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.99] focus:scale-[1.01] touch-manipulation",
       className
     )}
     {...props}
