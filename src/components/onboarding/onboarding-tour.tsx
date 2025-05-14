@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react"; // Import React
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -64,7 +64,7 @@ const tourSteps = [
   },
 ];
 
-export function OnboardingTour({ isOpen, onClose, onComplete }: OnboardingTourProps) {
+function OriginalOnboardingTour({ isOpen, onClose, onComplete }: OnboardingTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
   const handleNext = () => {
@@ -142,3 +142,5 @@ export function OnboardingTour({ isOpen, onClose, onComplete }: OnboardingTourPr
     </Dialog>
   );
 }
+
+export const OnboardingTour = React.memo(OriginalOnboardingTour);

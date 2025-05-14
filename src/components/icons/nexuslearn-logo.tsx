@@ -1,6 +1,9 @@
-import type { SVGProps } from 'react';
 
-export function NexusLearnLogo(props: SVGProps<SVGSVGElement>) {
+import type { SVGProps } from 'react';
+import React from 'react';
+
+// Original component definition
+function OriginalNexusLearnLogo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -47,3 +50,6 @@ export function NexusLearnLogo(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+// Memoized version of the component
+export const NexusLearnLogo = React.memo(OriginalNexusLearnLogo);
