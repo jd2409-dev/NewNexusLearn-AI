@@ -11,7 +11,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCh0mQRGunzCTVusAayuscottU1lwFeJn0",
   authDomain: "nexuslearn-ai-sfdbq.firebaseapp.com",
   projectId: "nexuslearn-ai-sfdbq",
-  storageBucket: "nexuslearn-ai-sfdbq.firebasestorage.app", // Corrected from .firebasestorage.app
+  storageBucket: "nexuslearn-ai-sfdbq.firebasestorage.app",
   messagingSenderId: "736968795180",
   appId: "1:736968795180:web:7dfcaae00b2ce710e79d89",
   measurementId: "G-SNGGC6E9FE"
@@ -49,9 +49,11 @@ if (typeof window !== 'undefined' && !getApps().length) {
     }
   }
 } else {
-  console.warn("Firebase app not initialized and not in a browser environment. Auth, DB, and Analytics might not be available.");
   // app, auth, db will be undefined here, which should be handled by consuming code
+  // Ensure auth and db are assigned a default or error state if not initialized
+  // For this fix, we assume initialization logic remains as is, but note potential for undefined if not in browser
+  console.warn("Firebase app not initialized and not in a browser environment. Auth, DB, and Analytics might not be available.");
 }
 
 // @ts-ignore - To allow for undefined in server context where auth/db might not be initialized
-export { app, auth, db, analytics };
+export { app, auth, db, analytics, firebaseConfig };
