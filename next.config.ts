@@ -13,10 +13,18 @@ const nextConfig = {
         dns: false,
         dgram: false,
         http2: false,
-        child_process: false, 
-        perf_hooks: false,    
+        child_process: false,
+        perf_hooks: false,
         'pg-native': false,
         "node:async_hooks": false, // Explicit fallback for "node:async_hooks"
+        "node:fs": false,
+        "node:net": false,
+        "node:tls": false,
+        "node:dns": false,
+        "node:dgram": false,
+        "node:http2": false,
+        "node:child_process": false,
+        "node:perf_hooks": false,
       };
 
       // Alias the specific OpenTelemetry modules causing issues on the client
@@ -41,7 +49,7 @@ const nextConfig = {
       if (!config.module.rules) {
         config.module.rules = [];
       }
-      
+
       // Rule for 'async_hooks' (without node: prefix)
       const asyncHooksRuleExists = config.module.rules.some(
         (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /^async_hooks$/.source && !rule.test.source.includes("node:")
