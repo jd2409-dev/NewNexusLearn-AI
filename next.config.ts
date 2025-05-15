@@ -16,6 +16,7 @@ const nextConfig = {
         child_process: false, 
         perf_hooks: false,    
         'pg-native': false,
+        "node:async_hooks": false, // Explicit fallback for "node:async_hooks"
       };
 
       // Alias the specific OpenTelemetry modules causing issues on the client
@@ -43,7 +44,7 @@ const nextConfig = {
       
       // Rule for 'async_hooks' (without node: prefix)
       const asyncHooksRuleExists = config.module.rules.some(
-        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /async_hooks/.source && !rule.test.source.includes("node:")
+        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /^async_hooks$/.source && !rule.test.source.includes("node:")
       );
       if (!asyncHooksRuleExists) {
         config.module.rules.push({
@@ -54,7 +55,7 @@ const nextConfig = {
 
       // Rule for 'node:async_hooks'
       const nodeAsyncHooksRuleExists = config.module.rules.some(
-        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /node:async_hooks/.source
+        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /^node:async_hooks$/.source
       );
       if (!nodeAsyncHooksRuleExists) {
         config.module.rules.push({
