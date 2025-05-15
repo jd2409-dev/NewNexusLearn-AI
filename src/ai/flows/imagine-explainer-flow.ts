@@ -16,9 +16,6 @@ import {z} from 'genkit';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
 // Creatomate API Configuration
-// IMPORTANT: The API key should ideally be stored in an environment variable (e.g., .env.local)
-// and accessed via process.env.CREATOMATE_API_KEY.
-// Hardcoding keys directly in the code is a security risk.
 const CREATOMATE_API_URL = 'https://api.creatomate.com/v1/renders';
 const CREATOMATE_API_KEY = 'c060d6a9a8394b21ab5a301cae21bf2b22c6b31fb4681b92f5f988c335ccabb0d7876b795f39c34f470588ebb5694f1c'; // User-provided API key
 const CREATOMATE_TEMPLATE_ID = '7b96e9bb-5f69-4585-abe9-e9adfb96be06'; // User-provided template ID
@@ -117,54 +114,76 @@ const imagineExplainerFlow = ai.defineFlow(
         body: JSON.stringify(creatomatePayload)
       });
 
-      // Attempt to parse JSON regardless of response.ok, as error details might be in the body
+      let parsedJson;
       try {
-        creatomateResponseData = await response.json();
+        parsedJson = await response.json();
+        console.log("Creatomate API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
       } catch (jsonError) {
-        // If JSON parsing fails, especially for non-OK responses with non-JSON bodies
-        console.error("Creatomate API response JSON parsing error:", jsonError);
-        if (!response.ok) {
+        console.error("Creatomate API: Failed to parse JSON response.", jsonError);
+        parsedJson = null; // Mark as failed parsing to handle below
+        if (!response.ok) { // If not OK and not JSON, construct error from status
             creatomateResponseData = { 
                 error: `HTTP error ${response.status}`, 
-                message: response.statusText || "Failed to render video and couldn't parse error response."
+                message: response.statusText || "Failed to process video request: Non-JSON error response."
             };
-        } else {
-            // This case is less likely: OK response but non-JSON body.
+        } else { // If OK status but not JSON (e.g. empty response, or non-JSON text)
              creatomateResponseData = { 
                 error: "Invalid JSON response from Creatomate", 
-                message: "Received a non-JSON response from Creatomate even with a success status."
-            };
-        }
-      }
-      console.log("Creatomate API Response Data:", creatomateResponseData);
-
-      if (!response.ok) {
-        console.error(`Creatomate API Error: ${response.status} ${response.statusText}`, creatomateResponseData);
-        // Ensure creatomateResponseData (which might already have error details) reflects the HTTP error if not already set
-        if (creatomateResponseData && !creatomateResponseData.error && !creatomateResponseData.message) {
-             creatomateResponseData.error = `HTTP error ${response.status}`;
-             creatomateResponseData.message = response.statusText || "Failed to render video with Creatomate.";
-        } else if (!creatomateResponseData) { // Should have been caught by jsonError block, but as a fallback
-             creatomateResponseData = { 
-                error: `HTTP error ${response.status}`, 
-                message: response.statusText || "Failed to render video with Creatomate."
+                message: response.statusText || "Received a non-JSON response from Creatomate despite a success status."
             };
         }
       }
 
-    } catch (e) {
+      if (!creatomateResponseData) { // Only process if not already set by JSON parsing error handling
+        if (response.ok) {
+          if (parsedJson && Array.isArray(parsedJson) && parsedJson.length > 0) {
+            creatomateResponseData = parsedJson[0]; // Key fix: take the first object from the array
+          } else if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
+            // Handle if API ever returns a single object directly on success
+            creatomateResponseData = parsedJson;
+          } else {
+            // Successful HTTP status, but unexpected JSON structure or parsing failed earlier
+            console.warn("Creatomate API successful, but response format was unexpected or unparsable:", parsedJson);
+            creatomateResponseData = {
+              error: "Unexpected response format from Creatomate after success status.",
+              message: parsedJson ? JSON.stringify(parsedJson) : (response.statusText || "Response was not valid JSON or was empty."),
+            };
+          }
+        } else { // !response.ok (HTTP error)
+          if (parsedJson && typeof parsedJson === 'object' && parsedJson !== null) {
+            // Creatomate returned a JSON error object
+            creatomateResponseData = parsedJson;
+            // Ensure our schema's fields are somewhat represented
+            if (!creatomateResponseData.error && !creatomateResponseData.message) {
+              creatomateResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown Creatomate Error'}`;
+              creatomateResponseData.message = JSON.stringify(parsedJson);
+            }
+          } else {
+            // HTTP error, and response was not JSON or JSON parsing failed
+            creatomateResponseData = {
+              error: `HTTP error ${response.status}`,
+              message: response.statusText || "Creatomate API request failed with non-JSON response.",
+            };
+          }
+        }
+      }
+      console.log("Processed Creatomate API Data (to be returned):", JSON.stringify(creatomateResponseData, null, 2));
+
+    } catch (e) { // Catches errors from AI prompt, or network error from fetch, etc.
       console.error("Error in imagineExplainerFlow execution:", e);
-      // Ensure creatomateResponseData reflects this error if it happened during the flow, possibly before API call
-      if (!creatomateResponseData) { // If error happened before Creatomate call or during it
+      if (!creatomateResponseData) { 
           creatomateResponseData = { error: "Flow execution error", message: (e as Error).message };
-      } else { // If error happened after Creatomate call, append to existing info if appropriate
-          creatomateResponseData.error = creatomateResponseData.error ? `${creatomateResponseData.error}; Flow error: ${(e as Error).message}` : `Flow error: ${(e as Error).message}`;
+      } else if (creatomateResponseData) { 
+          // Append flow execution error to existing Creatomate response error if any
+          const flowErrorMessage = `Flow error: ${(e as Error).message}`;
+          creatomateResponseData.error = creatomateResponseData.error ? `${creatomateResponseData.error}; ${flowErrorMessage}` : flowErrorMessage;
+          if (!creatomateResponseData.message) creatomateResponseData.message = ""; // ensure message field exists
       }
     }
     
     return {
       explanation: aiExplanation,
-      videoRenderJob: creatomateResponseData,
+      videoRenderJob: creatomateResponseData, // This should now be an object or null
     };
   }
 );
