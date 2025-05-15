@@ -21,7 +21,7 @@ export default function ImagineExplainerPage() {
     if (!topic.trim()) {
       toast({
         title: "Missing Topic",
-        description: "Please enter a topic to explain.",
+        description: "Please enter a topic to explain and generate a video for.",
         variant: "destructive",
       });
       return;
@@ -33,38 +33,39 @@ export default function ImagineExplainerPage() {
       const explanationResult = await imagineExplainer({ topic });
       setResult(explanationResult);
 
-      if (explanationResult.videoRenderJob && (explanationResult.videoRenderJob.error || explanationResult.videoRenderJob.message?.toLowerCase().includes('fail'))) {
+      if (explanationResult.videoRenderJob && (explanationResult.videoRenderJob.error || explanationResult.videoRenderJob.status === 'failed')) {
         toast({
-            title: "Video Generation Issue",
-            description: `Explanation generated, but video generation has an issue: ${explanationResult.videoRenderJob.message || explanationResult.videoRenderJob.error || 'Unknown video error'}. Check RunwayML for details.`,
+            title: "Video Generation Task Issue",
+            description: `Explanation generated. RunwayML task has an issue: ${explanationResult.videoRenderJob.message || explanationResult.videoRenderJob.error || 'Unknown video error'}. Task ID: ${explanationResult.videoRenderJob.task_id || 'N/A'}.`,
             variant: "destructive",
-            duration: 8000,
+            duration: 10000,
         });
-      } else if (explanationResult.videoRenderJob && (explanationResult.videoRenderJob.task_id || explanationResult.videoRenderJob.status)) {
+      } else if (explanationResult.videoRenderJob && explanationResult.videoRenderJob.task_id) {
          toast({
-            title: "Explanation & Video Job Started!",
-            description: `The Imagine Explainer worked its magic. Video generation task submitted to RunwayML (Task ID: ${explanationResult.videoRenderJob.task_id || 'N/A'}, Status: ${explanationResult.videoRenderJob.status || 'Unknown'}). This may take some time.`,
-            duration: 8000,
+            title: "Explanation Ready & Video Task Submitted!",
+            description: `The Imagine Explainer worked its magic. Video generation task submitted to RunwayML (Task ID: ${explanationResult.videoRenderJob.task_id}, Status: ${explanationResult.videoRenderJob.status || 'Submitted'}). This may take some time. Check RunwayML for progress.`,
+            duration: 10000,
         });
       } else if (explanationResult.explanation && explanationResult.explanation !== "Could not generate explanation.") {
          toast({
             title: "Explanation Ready!",
-            description: "The Imagine Explainer generated an explanation. Video generation status is unknown or encountered an issue before starting.",
+            description: "The Imagine Explainer generated an explanation. Video generation task could not be initiated or status is unknown. Check RunwayML info below.",
             variant: "default",
             duration: 7000,
          });
       } else {
         toast({
-            title: "Something Went Wrong",
-            description: "Could not generate an explanation or start video generation.",
+            title: "Operation Incomplete",
+            description: `Could not generate a full explanation or reliably start video generation. RunwayML info: ${explanationResult.videoRenderJob?.error || explanationResult.videoRenderJob?.message || 'No details from video service.'}`,
             variant: "destructive",
+            duration: 10000,
         });
       }
     } catch (error) {
       console.error("Imagine Explainer page error:", error);
       toast({
         title: "Operation Failed",
-        description: (error as Error).message || "Could not get an explanation or start video creation for this topic.",
+        description: (error as Error).message || "An unexpected error occurred while trying to get an explanation or start video creation.",
         variant: "destructive",
       });
     } finally {
@@ -77,14 +78,15 @@ export default function ImagineExplainerPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl flex items-center">
-            <Shapes className="mr-3 h-7 w-7 text-primary" /> Imagine Explainer & Video Creator
+            <Shapes className="mr-3 h-7 w-7 text-primary" /> Imagine Explainer & Video Creator (via RunwayML)
           </CardTitle>
           <CardDescription>
-            Got a complex topic? Let our AI explain it simply and start generating a short video via RunwayML!
+            Get a simple AI explanation for a complex topic, and initiate a text-to-video generation task using RunwayML!
             <br />
             <span className="text-xs text-muted-foreground">
-                Video generation uses the RunwayML API. Please ensure your API key is correctly set up and be mindful of API usage limits.
-                For production, the API key should be secured via environment variables. This page only initiates the task; it doesn't poll for completion.
+                Video generation uses the RunwayML API. Ensure your API key is correctly configured in the backend.
+                This page only initiates the task; it doesn't poll for completion. Check RunwayML with the Task ID.
+                The AI-generated text explanation will be used as the prompt for video generation.
             </span>
           </CardDescription>
         </CardHeader>
@@ -119,7 +121,7 @@ export default function ImagineExplainerPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-1">AI Explanation for "{topic || "your topic"}":</h3>
+              <h3 className="text-lg font-semibold mb-1">AI Explanation for "{result.videoRenderJob?.text_prompt ? (topic || 'your topic') : (topic || 'your topic')}" (used as video prompt):</h3>
               <div className="prose prose-sm dark:prose-invert max-w-none p-4 bg-background rounded-md shadow">
                 <p className="whitespace-pre-wrap text-sm">{result.explanation}</p>
               </div>
@@ -128,25 +130,29 @@ export default function ImagineExplainerPage() {
             {result.videoRenderJob && (
               <div>
                 <h3 className="text-lg font-semibold mb-2 flex items-center">
-                    <Film className="mr-2 h-5 w-5 text-primary" /> Video Generation Information (via RunwayML):
+                    <Film className="mr-2 h-5 w-5 text-primary" /> Video Generation Task (RunwayML):
                 </h3>
-                {result.videoRenderJob.error || result.videoRenderJob.message?.toLowerCase().includes('fail') ? (
+                {result.videoRenderJob.error || result.videoRenderJob.status === 'failed' ? (
                     <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-md">
                         <h4 className="font-semibold text-destructive flex items-center">
-                            <AlertTriangle className="mr-2 h-5 w-5" /> Error with Video Generation Task:
+                            <AlertTriangle className="mr-2 h-5 w-5" /> Error/Issue with Video Generation Task:
                         </h4>
-                        <p className="text-sm text-destructive/90">{result.videoRenderJob.message || result.videoRenderJob.error || "Unknown error occurred with video generation."}</p>
-                        {result.videoRenderJob.task_id && <p className="text-xs text-muted-foreground mt-1">Task ID: {result.videoRenderJob.task_id}</p>}
+                        <p className="text-sm text-destructive/90"><strong>Task ID:</strong> {result.videoRenderJob.task_id || "N/A"}</p>
+                        <p className="text-sm text-destructive/90"><strong>Status:</strong> {result.videoRenderJob.status || "Unknown"}</p>
+                        <p className="text-sm text-destructive/90"><strong>Details:</strong> {result.videoRenderJob.message || result.videoRenderJob.error || "An issue occurred with the video generation task."}</p>
                     </div>
                 ) : (
                     <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-md space-y-1">
-                        <p className="text-sm"><strong className="font-medium">Task ID:</strong> {result.videoRenderJob.task_id || "N/A"}</p>
+                        <p className="text-sm"><strong className="font-medium">Task ID:</strong> {result.videoRenderJob.task_id || "Not available"}</p>
                         <p className="text-sm"><strong className="font-medium">Status:</strong> {result.videoRenderJob.status || "Submitted/Processing"}</p>
                         {result.videoRenderJob.output_url && (
                              <p className="text-sm"><strong className="font-medium">Video URL (if ready):</strong> <a href={result.videoRenderJob.output_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">{result.videoRenderJob.output_url}</a></p>
                         )}
+                         {result.videoRenderJob.snapshot_url && ( // Assuming snapshot_url might be available
+                             <p className="text-sm"><strong className="font-medium">Snapshot URL:</strong> <a href={result.videoRenderJob.snapshot_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">{result.videoRenderJob.snapshot_url}</a></p>
+                        )}
                         <p className="text-xs text-muted-foreground mt-2">
-                            Note: Video generation is initiated with RunwayML and may take some time. This page does not auto-refresh video status. You might need to check RunwayML using the Task ID.
+                            Note: Video generation is initiated with RunwayML and may take some time. This page does not auto-refresh video status. You might need to check your RunwayML dashboard using the Task ID for progress and the final video.
                         </p>
                     </div>
                 )}
@@ -155,9 +161,9 @@ export default function ImagineExplainerPage() {
              {!result.videoRenderJob && result.explanation !== "Could not generate explanation." && (
                 <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-md">
                     <h4 className="font-semibold text-yellow-700 dark:text-yellow-400 flex items-center">
-                        <AlertTriangle className="mr-2 h-5 w-5" /> Video Generation Not Started
+                        <AlertTriangle className="mr-2 h-5 w-5" /> Video Generation Not Started or Failed Early
                     </h4>
-                    <p className="text-sm text-yellow-700/90 dark:text-yellow-500/90">The video generation task could not be initiated. Please check server logs for more details if the issue persists.</p>
+                    <p className="text-sm text-yellow-700/90 dark:text-yellow-500/90">The video generation task could not be initiated or an error occurred before receiving details from RunwayML. Please check server logs for more details if the issue persists.</p>
                 </div>
             )}
           </CardContent>
@@ -171,4 +177,3 @@ export default function ImagineExplainerPage() {
     </div>
   );
 }
-
