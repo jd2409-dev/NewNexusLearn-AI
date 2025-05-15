@@ -20,9 +20,9 @@ import { gemini15Flash } from '@genkit-ai/googleai';
 // and accessed via process.env.CREATOMATE_API_KEY.
 // Hardcoding keys directly in the code is a security risk.
 const CREATOMATE_API_URL = 'https://api.creatomate.com/v1/renders';
-const CREATOMATE_API_KEY = 'c060d6a9a8394b21ab5a301cae21bf2b22c6b31fb4681b92f5f988c335ccabb0d7876b795f39c34f470588ebb5694f1c'; // Replace with process.env.CREATOMATE_API_KEY in production
-const CREATOMATE_TEMPLATE_ID = '7b96e9bb-5f69-4585-abe9-e9adfb96be06';
-const DEFAULT_VIDEO_SOURCE = 'https://creatomate.com/files/assets/7347c3b7-e1a8-4439-96f1-f3dfc95c3d28';
+const CREATOMATE_API_KEY = 'c060d6a9a8394b21ab5a301cae21bf2b22c6b31fb4681b92f5f988c335ccabb0d7876b795f39c34f470588ebb5694f1c'; // User-provided API key
+const CREATOMATE_TEMPLATE_ID = '7b96e9bb-5f69-4585-abe9-e9adfb96be06'; // User-provided template ID
+const DEFAULT_VIDEO_SOURCE = 'https://creatomate.com/files/assets/7347c3b7-e1a8-4439-96f1-f3dfc95c3d28'; // User-provided video source
 
 const ImagineExplainerInputSchema = z.object({
   topic: z.string().describe('The complex topic to be explained simply and used for the video.'),
@@ -32,16 +32,15 @@ export type ImagineExplainerInput = z.infer<typeof ImagineExplainerInputSchema>;
 // Schema for the AI-generated text explanation part
 const TextExplanationSchema = z.object({
   explanation: z.string().describe('A simple, imaginative explanation of the topic.'),
-  // imageSuggestion is removed as we are now generating video
 });
 
-// Schema for the Creatomate API response (flexible)
+// Schema for the Creatomate API response (flexible for now)
 const CreatomateResponseSchema = z.object({
   id: z.string().optional(),
   status: z.string().optional(),
   url: z.string().optional(), // URL to the rendered video if available immediately or upon completion
-  error: z.string().optional(),
-  message: z.string().optional(),
+  error: z.string().nullable().optional(), // Captures error messages from Creatomate
+  message: z.string().nullable().optional(), // Additional messages, often error details
   // Use passthrough to allow any other fields Creatomate might return
 }).passthrough();
 
@@ -66,8 +65,7 @@ const explanationPrompt = ai.definePrompt({
 
 Topic: {{{topic}}}
 
-Please provide:
-1. A simple explanation for the topic: "{{{topic}}}". This will be the main text in the video.
+Please provide a simple explanation for the topic: "{{{topic}}}". This will be the main text in the video.
 Keep the explanation concise, ideally 1-3 short paragraphs.
 
 Example of expected output format:
@@ -93,7 +91,7 @@ const imagineExplainerFlow = ai.defineFlow(
       const { output: explanationOutput } = await explanationPrompt(input);
       if (!explanationOutput || typeof explanationOutput.explanation !== 'string') {
         console.error("imagineExplainerFlow: AI prompt returned undefined or malformed output for input:", input, "Output received:", explanationOutput);
-        // Fallback explanation already set
+        // Fallback explanation is already set as "Could not generate explanation."
       } else {
         aiExplanation = explanationOutput.explanation;
       }
@@ -102,7 +100,7 @@ const imagineExplainerFlow = ai.defineFlow(
       const creatomatePayload = {
         template_id: CREATOMATE_TEMPLATE_ID,
         modifications: {
-          "Video.source": DEFAULT_VIDEO_SOURCE, // Using the default video for now
+          "Video.source": DEFAULT_VIDEO_SOURCE,
           "Text-1.text": aiExplanation, // Use AI generated explanation
           "Text-2.text": `Understanding: ${input.topic}`, // Use the topic as a secondary text
         },
@@ -119,15 +117,35 @@ const imagineExplainerFlow = ai.defineFlow(
         body: JSON.stringify(creatomatePayload)
       });
 
-      creatomateResponseData = await response.json();
-      console.log("Creatomate API Response:", creatomateResponseData);
+      // Attempt to parse JSON regardless of response.ok, as error details might be in the body
+      try {
+        creatomateResponseData = await response.json();
+      } catch (jsonError) {
+        // If JSON parsing fails, especially for non-OK responses with non-JSON bodies
+        console.error("Creatomate API response JSON parsing error:", jsonError);
+        if (!response.ok) {
+            creatomateResponseData = { 
+                error: `HTTP error ${response.status}`, 
+                message: response.statusText || "Failed to render video and couldn't parse error response."
+            };
+        } else {
+            // This case is less likely: OK response but non-JSON body.
+             creatomateResponseData = { 
+                error: "Invalid JSON response from Creatomate", 
+                message: "Received a non-JSON response from Creatomate even with a success status."
+            };
+        }
+      }
+      console.log("Creatomate API Response Data:", creatomateResponseData);
 
       if (!response.ok) {
         console.error(`Creatomate API Error: ${response.status} ${response.statusText}`, creatomateResponseData);
-        // The creatomateResponseData might already contain error details from response.json()
-        // Ensure error details are captured if creatomateResponseData is not in expected error format
-        if (!creatomateResponseData || (!creatomateResponseData.error && !creatomateResponseData.message)) {
-            creatomateResponseData = { 
+        // Ensure creatomateResponseData (which might already have error details) reflects the HTTP error if not already set
+        if (creatomateResponseData && !creatomateResponseData.error && !creatomateResponseData.message) {
+             creatomateResponseData.error = `HTTP error ${response.status}`;
+             creatomateResponseData.message = response.statusText || "Failed to render video with Creatomate.";
+        } else if (!creatomateResponseData) { // Should have been caught by jsonError block, but as a fallback
+             creatomateResponseData = { 
                 error: `HTTP error ${response.status}`, 
                 message: response.statusText || "Failed to render video with Creatomate."
             };
@@ -135,10 +153,12 @@ const imagineExplainerFlow = ai.defineFlow(
       }
 
     } catch (e) {
-      console.error("Error in imagineExplainerFlow:", e);
-      // Ensure creatomateResponseData reflects this error if it happened during API call
-      if (!creatomateResponseData) {
+      console.error("Error in imagineExplainerFlow execution:", e);
+      // Ensure creatomateResponseData reflects this error if it happened during the flow, possibly before API call
+      if (!creatomateResponseData) { // If error happened before Creatomate call or during it
           creatomateResponseData = { error: "Flow execution error", message: (e as Error).message };
+      } else { // If error happened after Creatomate call, append to existing info if appropriate
+          creatomateResponseData.error = creatomateResponseData.error ? `${creatomateResponseData.error}; Flow error: ${(e as Error).message}` : `Flow error: ${(e as Error).message}`;
       }
     }
     
