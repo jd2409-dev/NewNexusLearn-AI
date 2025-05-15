@@ -34,7 +34,8 @@ import {
   User,
   Edit3, 
   FileClock, 
-  Trophy, 
+  Trophy,
+  Shapes, // Added Shapes icon
 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,9 +48,9 @@ const navItems = [
   { href: "/quizzes", icon: Lightbulb, label: "Quizzes" },
   { href: "/ai-coach", icon: MessageSquareHeart, label: "AI Coach" },
   { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" },
+  { href: "/imagine-explainer", icon: Shapes, label: "Imagine Explainer" }, // New item
   { href: "/reflection", icon: FileClock, label: "Reflection" },
   { href: "/achievements", icon: Trophy, label: "Achievements" },
-  // { href: "/leaderboard", icon: Users, label: "Leaderboard" }, // Removed Leaderboard
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
@@ -133,7 +134,7 @@ export function AppSidebar() {
               {isAccountOpen && (
                    <SidebarMenuSub>
                       <SidebarMenuSubItem>
-                        <SidebarMenuSubButton onClick={handleLogout} disabled={authLoading}>
+                        <SidebarMenuSubButton onClick={handleLogout} disabled={authLoading} className="transition-all duration-150 ease-in-out hover:scale-[1.01] active:scale-[0.98] touch-manipulation active:brightness-95">
                             <LogOut className="h-4 w-4" /> Log Out
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
