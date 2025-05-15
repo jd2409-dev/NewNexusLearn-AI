@@ -11,19 +11,29 @@ const nextConfig = {
         net: false,
         tls: false,
         dns: false,
-        dgram: false, // Added fallback for dgram
+        dgram: false,
         http2: false,
-        child_process: false, // Often needed for server-side libraries
-        perf_hooks: false,    // Related to performance monitoring
-        'pg-native': false,   // Example if 'pg' library is used
-        // Add other Node.js core modules here if similar errors appear
+        child_process: false, 
+        perf_hooks: false,    
+        'pg-native': false,
       };
 
       // Alias the specific OpenTelemetry modules causing issues on the client
+      // AND explicitly alias "node:async_hooks"
       config.resolve.alias = {
         ...(config.resolve.alias || {}),
         '@opentelemetry/context-async-hooks': false,
         '@opentelemetry/sdk-trace-node': false,
+        "node:async_hooks": false, // Explicitly alias "node:async_hooks"
+        // Add other "node:" prefixed modules if they cause issues
+        "node:fs": false,
+        "node:net": false,
+        "node:tls": false,
+        "node:dns": false,
+        "node:dgram": false,
+        "node:http2": false,
+        "node:child_process": false,
+        "node:perf_hooks": false,
       };
 
       // Add a specific rule to use null-loader for async_hooks
@@ -36,7 +46,7 @@ const nextConfig = {
       );
       if (!asyncHooksRuleExists) {
         config.module.rules.push({
-          test: /async_hooks/,
+          test: /async_hooks/, // This regex might need to be adjusted if "node:async_hooks" is not caught
           use: 'null-loader',
         });
       }
