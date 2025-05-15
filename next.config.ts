@@ -11,6 +11,7 @@ const nextConfig = {
         net: false,
         tls: false,
         dns: false,
+        dgram: false, // Added fallback for dgram
         http2: false,
         child_process: false, // Often needed for server-side libraries
         perf_hooks: false,    // Related to performance monitoring
