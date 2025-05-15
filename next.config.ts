@@ -21,8 +21,18 @@ const nextConfig = {
       config.resolve.alias = {
         ...(config.resolve.alias || {}),
         '@opentelemetry/context-async-hooks': false,
-        '@opentelemetry/sdk-trace-node': false, // Add alias for the parent Node SDK
+        '@opentelemetry/sdk-trace-node': false,
       };
+
+      // Add a specific rule to use null-loader for async_hooks
+      // This is another way to ensure it's stubbed out on the client
+      if (!config.module.rules) {
+        config.module.rules = [];
+      }
+      config.module.rules.push({
+        test: /async_hooks/,
+        use: 'null-loader',
+      });
     }
 
     return config;
