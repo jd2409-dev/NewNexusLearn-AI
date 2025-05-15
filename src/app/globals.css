@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,24 +6,24 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 220 15% 10%; /* Default to dark text on light bg for light theme */
+    --foreground: 0 0% 3.9%; /* Black for text on light theme */
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 10%;
+    --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 10%;
+    --popover-foreground: 0 0% 3.9%;
     --primary: 145 58% 55%; /* Emerald Green */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 220 15% 96.1%; /* Light gray for light theme */
-    --secondary-foreground: 220 15% 10%;
-    --muted: 220 15% 96.1%;
-    --muted-foreground: 220 15% 45.1%;
+    --primary-foreground: 0 0% 100%; /* White text on Emerald Green */
+    --secondary: 0 0% 96.1%; /* Light gray for secondary elements in light theme */
+    --secondary-foreground: 0 0% 9%; /* Darker text for secondary elements */
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
     --accent: 51 100% 50%; /* Gold */
-    --accent-foreground: 0 0% 0%; /* Black */
+    --accent-foreground: 0 0% 3.9%; /* Black text on Gold */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 89.8%;
-    --input: 220 15% 89.8%;
-    --ring: 51 100% 50%; /* Gold for focus rings */
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 145 58% 55%; /* Emerald Green for focus rings (matching primary) */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -30,36 +31,36 @@
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
 
-    /* Sidebar specific vars for light theme (if ever used) */
-    --sidebar-background: 220 15% 98%;
-    --sidebar-foreground: 220 15% 26.1%;
+    /* Sidebar specific vars for light theme */
+    --sidebar-background: 0 0% 98%; /* Very light gray */
+    --sidebar-foreground: 0 0% 20%; /* Dark gray text */
     --sidebar-primary: 145 58% 55%; /* Emerald Green */
     --sidebar-primary-foreground: 0 0% 100%; /* White */
-    --sidebar-accent: 220 15% 95.9%;
-    --sidebar-accent-foreground: 220 15% 10%;
-    --sidebar-border: 220 15% 91%;
+    --sidebar-accent: 0 0% 94%; /* Slightly darker gray for hover */
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 90%;
     --sidebar-ring: 51 100% 50%; /* Gold */
   }
 
   .dark {
-    --background: 220 15% 10%; /* Dark Blue/Black */
-    --foreground: 220 10% 90%; /* Light Gray */
-    --card: 220 15% 13%;
-    --card-foreground: 220 10% 90%;
-    --popover: 220 15% 13%;
-    --popover-foreground: 220 10% 90%;
+    --background: 0 0% 0%; /* Black */
+    --foreground: 0 0% 98%; /* White/Very Light Gray */
+    --card: 0 0% 4%; /* Very dark gray, almost black */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 95%;
     --primary: 145 58% 55%; /* Emerald Green */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 220 15% 20%; /* Slightly lighter dark blue/gray */
-    --secondary-foreground: 220 10% 80%;
-    --muted: 220 15% 25%;
-    --muted-foreground: 220 10% 65%;
+    --primary-foreground: 0 0% 100%; /* White text on Emerald Green */
+    --secondary: 0 0% 15%; /* Dark gray for secondary elements */
+    --secondary-foreground: 0 0% 80%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
     --accent: 51 100% 50%; /* Gold */
-    --accent-foreground: 0 0% 0%; /* Black */
+    --accent-foreground: 0 0% 3.9%; /* Black text on Gold */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 20%;
-    --input: 220 15% 22%;
+    --border: 0 0% 12%; /* Dark border */
+    --input: 0 0% 10%; /* Dark input background */
     --ring: 51 100% 50%; /* Gold for focus rings */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -68,13 +69,13 @@
     --chart-5: 340 75% 55%;
 
     /* Sidebar specific vars for dark theme */
-    --sidebar-background: 220 15% 8%; /* Slightly darker than main background */
-    --sidebar-foreground: 220 10% 85%;
+    --sidebar-background: 0 0% 2%; /* Very dark, slightly off-black for sidebar */
+    --sidebar-foreground: 0 0% 90%;
     --sidebar-primary: 145 58% 55%; /* Emerald Green for active items */
     --sidebar-primary-foreground: 0 0% 100%; /* White */
-    --sidebar-accent: 220 15% 18%; /* Hover state */
-    --sidebar-accent-foreground: 220 10% 95%;
-    --sidebar-border: 220 15% 15%;
+    --sidebar-accent: 0 0% 10%; /* Darker gray for hover state */
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 8%;
     --sidebar-ring: 51 100% 50%; /* Gold */
   }
 }

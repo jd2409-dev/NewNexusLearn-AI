@@ -1,3 +1,4 @@
+
 import type { User } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, type Timestamp, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "@/firebase";
@@ -278,6 +279,17 @@ export async function updateSubjectProgress(userId: string, subjectName: string,
         "studyData.subjects": newSubjectsArray,
         "studyData.lastActivityDate": serverTimestamp(),
       });
+
+      // Check for subject mastery
+      if (newProgress >= 100) {
+        const achievementId = `subject_mastery_${subjectName.toLowerCase().replace(/\s+/g, '_')}`;
+        unlockAchievement(userId, {
+          id: achievementId,
+          name: `${subjectName} Mastered!`,
+          description: `Congratulations! You've mastered the ${subjectName} subject.`,
+          icon: "Trophy", // Using Trophy icon for subject mastery
+        });
+      }
     }
   } catch (error) {
     console.error(`Error updating progress for subject ${subjectName}:`, error);
