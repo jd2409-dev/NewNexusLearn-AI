@@ -1,4 +1,6 @@
+
 'use server';
+console.log("Loading AI Flow: provide-ai-study-coaching.ts");
 
 /**
  * @fileOverview An AI study coach that provides step-by-step explanations.
@@ -49,9 +51,9 @@ const provideAiStudyCoachingFlow = ai.defineFlow(
   async input => {
     try {
       const {output} = await prompt(input);
-      if (!output) {
-        console.error("provideAiStudyCoachingFlow: Prompt returned undefined output for input:", input);
-        throw new Error("AI model failed to provide study coaching. Output was undefined.");
+      if (!output || typeof output.explanation !== 'string') {
+        console.error("provideAiStudyCoachingFlow: Prompt returned undefined or malformed output for input:", input, "Output received:", output);
+        throw new Error("AI model failed to provide study coaching. Output was undefined or malformed.");
       }
       return output;
     } catch (e) {

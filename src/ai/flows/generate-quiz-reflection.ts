@@ -1,4 +1,7 @@
+
 'use server';
+console.log("Loading AI Flow: generate-quiz-reflection.ts");
+
 /**
  * @fileOverview Generates AI-powered reflections and advice based on past quiz performance.
  *
@@ -95,10 +98,12 @@ const generateQuizReflectionFlow = ai.defineFlow(
   async (input) => {
     try {
       const { output } = await prompt(input);
-      if (!output) {
-          console.error("generateQuizReflectionFlow: Prompt returned undefined output for input:", input);
-          throw new Error("AI model failed to generate quiz reflection. Output was undefined.");
+      if (!output || typeof output.reflectionText !== 'string') {
+          console.error("generateQuizReflectionFlow: Prompt returned undefined or malformed output for input:", input, "Output received:", output);
+          throw new Error("AI model failed to generate quiz reflection. Output was undefined or malformed.");
       }
+      // Ensure identifiedWeaknesses is an array if present, or default to empty array
+      output.identifiedWeaknesses = Array.isArray(output.identifiedWeaknesses) ? output.identifiedWeaknesses : [];
       return output;
     } catch (e) {
       console.error("Error in generateQuizReflectionFlow with input:", input, "Error:", e);

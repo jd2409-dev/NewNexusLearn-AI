@@ -1,5 +1,7 @@
+
 // src/ai/flows/generate-interactive-quiz.ts
 'use server';
+console.log("Loading AI Flow: generate-interactive-quiz.ts");
 
 /**
  * @fileOverview Generates interactive quiz questions from uploaded PDF content,
@@ -130,8 +132,8 @@ const generateInteractiveQuizFlow = ai.defineFlow(
       }
       const {output} = await prompt(input);
 
-      if (!output || !output.questions) {
-        console.error("generateInteractiveQuizFlow: Prompt returned undefined output or no questions for input:", input, "Output received:", output);
+      if (!output || !output.questions || !Array.isArray(output.questions)) {
+        console.error("generateInteractiveQuizFlow: Prompt returned undefined, no questions array, or malformed questions for input:", input, "Output received:", output);
         throw new Error("AI model failed to generate quiz questions. Output was undefined or malformed.");
       }
 

@@ -1,4 +1,6 @@
+
 'use server';
+console.log("Loading AI Flow: generate-study-summary.ts");
 
 /**
  * @fileOverview Generates concise revision notes from a textbook PDF.
@@ -21,14 +23,12 @@ const GenerateStudySummaryInputSchema = z.object({
 });
 export type GenerateStudySummaryInput = z.infer<typeof GenerateStudySummaryInputSchema>;
 
-const GenerateStudySummaryOutputSchema = z.object({
-  summary: z.string().describe('Concise revision notes generated from the textbook.'),
-  // progress field is part of the final return, not the direct AI output schema
+const GenerateStudySummaryOutputSchema = z.object({ // Adjusted type for the wrapper function
+    summary: z.string().describe('Concise revision notes generated from the textbook.'),
+    progress: z.string().describe('A message indicating the progress of summary generation.'),
 });
-export type GenerateStudySummaryOutput = { // Adjusted type for the wrapper function
-    summary: string;
-    progress: string;
-};
+export type GenerateStudySummaryOutput = z.infer<typeof GenerateStudySummaryOutputSchema>;
+
 
 const PromptOutputSchema = z.object({ // Schema for what the AI model itself returns
   summary: z.string().describe('Concise revision notes generated from the textbook.'),

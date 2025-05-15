@@ -40,7 +40,7 @@ try {
   console.error("--------------------------------------------------------------");
   // Rethrowing the error to ensure the server still reports a failure,
   // but now with more context logged above.
-  throw new Error(`Genkit initialization failed: ${(error as Error).message}. Check server logs for details.`);
+  throw new Error(`Genkit initialization failed: ${(error as Error).message}. THIS IS A SERVER-SIDE ERROR. CHECK YOUR SERVER LOGS AND ENSURE API KEYS (e.g., GOOGLE_API_KEY or GEMINI_API_KEY) ARE CORRECTLY SET IN YOUR ENVIRONMENT (e.g., .env.local file or deployment settings).`);
 }
 
 export const ai = aiInstance;

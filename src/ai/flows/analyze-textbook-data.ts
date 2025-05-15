@@ -1,6 +1,8 @@
+
 // This file analyzes textbook data and finds direct answers within the textbook when asked a question.
 
 'use server';
+console.log("Loading AI Flow: analyze-textbook-data.ts");
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
@@ -46,9 +48,9 @@ const analyzeTextbookDataFlow = ai.defineFlow(
   async input => {
     try {
       const {output} = await prompt(input);
-      if (!output) {
-        console.error("analyzeTextbookDataFlow: Prompt returned undefined output for input:", input);
-        throw new Error("AI model failed to analyze textbook data. Output was undefined.");
+      if (!output || typeof output.answer !== 'string' || typeof output.pageReferences !== 'string') {
+        console.error("analyzeTextbookDataFlow: Prompt returned undefined or malformed output for input:", input, "Output received:", output);
+        throw new Error("AI model failed to analyze textbook data. Output was undefined or malformed.");
       }
       return output;
     } catch (e) {

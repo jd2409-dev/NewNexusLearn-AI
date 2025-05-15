@@ -1,5 +1,8 @@
 
+
 'use server';
+console.log("Loading AI Flow: provide-writing-assistance.ts");
+
 /**
  * @fileOverview Provides AI-powered writing assistance for essays and reports.
  *
@@ -67,9 +70,9 @@ const provideWritingAssistanceFlow = ai.defineFlow(
   async input => {
     try {
       const {output} = await prompt(input);
-      if (!output) {
-        console.error("provideWritingAssistanceFlow: Prompt returned undefined output for input:", input);
-        throw new Error("AI model failed to provide writing assistance. Output was undefined.");
+      if (!output || typeof output.feedback !== 'string' || !Array.isArray(output.suggestions)) {
+        console.error("provideWritingAssistanceFlow: Prompt returned undefined or malformed output for input:", input, "Output received:", output);
+        throw new Error("AI model failed to provide writing assistance. Output was undefined or malformed.");
       }
       return output;
     } catch (e) {

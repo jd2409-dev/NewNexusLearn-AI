@@ -1,3 +1,4 @@
+
 // use server'
 
 /**
@@ -7,6 +8,7 @@
  * - GenerateExamBlueprintInput - The input type for the generateExamBlueprint function.
  * - GenerateExamBlueprintOutput - The return type for the generateExamBlueprint function.
  */
+console.log("Loading AI Flow: generate-exam-blueprint.ts");
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
@@ -57,15 +59,13 @@ const generateExamBlueprintFlow = ai.defineFlow(
   async input => {
     try {
       const {output} = await prompt(input);
-      if (!output) {
-        console.error("generateExamBlueprintFlow: Prompt returned undefined output for input:", input);
-        throw new Error("AI model failed to generate a blueprint. Output was undefined.");
+      if (!output || typeof output.blueprint !== 'string') {
+        console.error("generateExamBlueprintFlow: Prompt returned undefined or malformed output for input:", input, "Output received:", output);
+        throw new Error("AI model failed to generate a blueprint. Output was undefined or malformed.");
       }
       return output;
     } catch (e) {
       console.error("Error in generateExamBlueprintFlow with input:", input, "Error:", e);
-      // Re-throw the error so it's still treated as a failure by Genkit/Next.js,
-      // but we've logged it more specifically here.
       throw new Error(`Failed to generate exam blueprint: ${(e as Error).message}`);
     }
   }
