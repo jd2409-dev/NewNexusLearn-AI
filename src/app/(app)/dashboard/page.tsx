@@ -23,7 +23,7 @@ interface DashboardCardProps {
   disabled?: boolean;
 }
 
-function DashboardCard({ title, description, icon, href, actionText, disabled }: DashboardCardProps) {
+function OriginalDashboardCard({ title, description, icon, href, actionText, disabled }: DashboardCardProps) {
   return (
     <Card className="hover:shadow-primary/10 transition-shadow h-full flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -41,7 +41,7 @@ function DashboardCard({ title, description, icon, href, actionText, disabled }:
     </Card>
   );
 }
-const MemoizedDashboardCard = memo(DashboardCard);
+const MemoizedDashboardCard = memo(OriginalDashboardCard);
 
 
 interface StatCardProps {
@@ -50,7 +50,7 @@ interface StatCardProps {
   icon: React.ReactNode;
 }
 
-function StatCard({ title, value, icon }: StatCardProps) {
+function OriginalStatCard({ title, value, icon }: StatCardProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -63,7 +63,7 @@ function StatCard({ title, value, icon }: StatCardProps) {
     </Card>
   );
 }
-const MemoizedStatCard = memo(StatCard);
+const MemoizedStatCard = memo(OriginalStatCard);
 
 
 export default function DashboardPage() {
@@ -128,12 +128,12 @@ export default function DashboardPage() {
             </p>
             <div className="mt-6 flex flex-col sm:flex-row gap-3 md:gap-4">
               <Link href="/learning-paths">
-                <Button size="lg" className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
+                <Button size="lg" className="w-full sm:w-auto transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
                   <BookOpenText className="mr-2 h-5 w-5" /> Create Learning Path
                 </Button>
               </Link>
               <Link href="/quizzes">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
                   <Lightbulb className="mr-2 h-5 w-5" /> Start a Quiz
                 </Button>
               </Link>
@@ -141,7 +141,7 @@ export default function DashboardPage() {
           </div>
           <div className="md:w-1/3 flex justify-center mt-6 md:mt-0">
             <Image 
-              src="https://placehold.co/200x200.png" 
+              src="https://images.unsplash.com/photo-1533162507191-d90c625b2640?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxOHx8Y2FsbXxlbnwwfHx8fDE3NDcyMzQ0NzB8MA&ixlib=rb-4.1.0&q=80&w=1080" 
               alt="AI Learning Illustration"
               data-ai-hint="AI learning" 
               width={200} 
@@ -217,12 +217,12 @@ export default function DashboardPage() {
             </div>
              <div className="w-full mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                  <Link href="/analytics" className="w-full">
-                    <Button variant="outline" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
+                    <Button variant="outline" className="w-full transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
                         <BarChart3 className="mr-2 h-4 w-4" /> Detailed Analytics
                     </Button>
                  </Link>
                  <Link href="/achievements" className="w-full">
-                    <Button variant="outline" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation">
+                    <Button variant="outline" className="w-full transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
                         <Star className="mr-2 h-4 w-4" /> View Achievements
                     </Button>
                  </Link>
