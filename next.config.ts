@@ -2,11 +2,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { isServer }) => {
-    // Solution for Node.js core modules not available in the browser
+    // Apply these configurations only for the client-side bundle
     if (!isServer) {
+      // Fallback for Node.js core modules that are not available in the browser.
+      // This tells Webpack to provide an empty module for these imports on the client.
       config.resolve.fallback = {
         ...(config.resolve.fallback || {}), // Preserve any existing fallbacks
-        async_hooks: false, // Crucial for the reported error
+        async_hooks: false, // For 'async_hooks'
+        "node:async_hooks": false, // Explicitly for 'node:async_hooks'
         fs: false,
         net: false,
         tls: false,
@@ -15,8 +18,7 @@ const nextConfig = {
         http2: false,
         child_process: false,
         perf_hooks: false,
-        'pg-native': false,
-        "node:async_hooks": false, // Explicit fallback for "node:async_hooks"
+        'pg-native': false, // If pg-native is ever a transitive dependency
         "node:fs": false,
         "node:net": false,
         "node:tls": false,
@@ -27,14 +29,14 @@ const nextConfig = {
         "node:perf_hooks": false,
       };
 
-      // Alias the specific OpenTelemetry modules causing issues on the client
-      // AND explicitly alias "node:async_hooks"
+      // Alias problematic modules (especially server-side ones) to false
+      // to prevent them from being bundled on the client.
       config.resolve.alias = {
         ...(config.resolve.alias || {}),
         '@opentelemetry/context-async-hooks': false,
         '@opentelemetry/sdk-trace-node': false,
-        "node:async_hooks": false, // Explicitly alias "node:async_hooks"
-        // Add other "node:" prefixed modules if they cause issues
+        "node:async_hooks": false, // Explicitly alias "node:async_hooks" to false
+        // Aliasing other "node:" prefixed modules, though fallbacks should also cover them.
         "node:fs": false,
         "node:net": false,
         "node:tls": false,
@@ -45,14 +47,21 @@ const nextConfig = {
         "node:perf_hooks": false,
       };
 
-      // Add a specific rule to use null-loader for async_hooks and node:async_hooks
+      // Use null-loader for specific Node.js modules to replace them with an empty module.
+      // This is an additional layer of defense.
       if (!config.module.rules) {
         config.module.rules = [];
       }
 
       // Rule for 'async_hooks' (without node: prefix)
+      // Ensures that if a module tries to require 'async_hooks', it gets an empty module.
       const asyncHooksRuleExists = config.module.rules.some(
-        (rule) => typeof rule === 'object' && Array.isArray(rule.use) && rule.use.some((u: any) => u.loader === 'null-loader') && rule.test instanceof RegExp && rule.test.source === /^async_hooks$/.source && !rule.test.source.includes("node:")
+        (rule) =>
+          typeof rule === 'object' &&
+          rule.test instanceof RegExp &&
+          rule.test.source === /^async_hooks$/.source &&
+          Array.isArray(rule.use) &&
+          rule.use.some((u: any) => u.loader === 'null-loader')
       );
       if (!asyncHooksRuleExists) {
         config.module.rules.push({
@@ -62,8 +71,14 @@ const nextConfig = {
       }
 
       // Rule for 'node:async_hooks'
+      // This specifically targets the "node:async_hooks" import scheme.
       const nodeAsyncHooksRuleExists = config.module.rules.some(
-        (rule) => typeof rule === 'object' && Array.isArray(rule.use) && rule.use.some((u: any) => u.loader === 'null-loader') && rule.test instanceof RegExp && rule.test.source === /^node:async_hooks$/.source
+        (rule) =>
+          typeof rule === 'object' &&
+          rule.test instanceof RegExp &&
+          rule.test.source === /^node:async_hooks$/.source &&
+          Array.isArray(rule.use) &&
+          rule.use.some((u: any) => u.loader === 'null-loader')
       );
       if (!nodeAsyncHooksRuleExists) {
         config.module.rules.push({
@@ -73,8 +88,10 @@ const nextConfig = {
       }
     }
 
-    // If issues persist with Turbopack (next dev --turbopack),
-    // they might stem from Turbopack not fully respecting these Webpack configurations.
+    // Comment for Turbopack users:
+    // If issues with 'async_hooks' or 'node:async_hooks' persist when using
+    // `next dev --turbopack`, it might indicate that Turbopack does not fully
+    // respect all these Webpack configurations in the same way.
     // Testing with `next dev` (which uses Webpack) can help isolate such issues.
 
     return config;
