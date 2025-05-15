@@ -102,7 +102,7 @@ export function AppSidebar() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href} passHref legacyBehavior>
+              <Link href={item.href}>
                 <SidebarMenuButton
                   isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                   onClick={closeMobileSidebar}
@@ -144,4 +144,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
