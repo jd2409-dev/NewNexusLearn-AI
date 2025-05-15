@@ -36,17 +36,29 @@ const nextConfig = {
         "node:perf_hooks": false,
       };
 
-      // Add a specific rule to use null-loader for async_hooks
-      // This is another way to ensure it's stubbed out on the client
+      // Add a specific rule to use null-loader for async_hooks and node:async_hooks
       if (!config.module.rules) {
         config.module.rules = [];
       }
+      
+      // Rule for 'async_hooks' (without node: prefix)
       const asyncHooksRuleExists = config.module.rules.some(
-        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /async_hooks/.source
+        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /async_hooks/.source && !rule.test.source.includes("node:")
       );
       if (!asyncHooksRuleExists) {
         config.module.rules.push({
-          test: /async_hooks/, // This regex might need to be adjusted if "node:async_hooks" is not caught
+          test: /^async_hooks$/, // Match 'async_hooks' exactly
+          use: 'null-loader',
+        });
+      }
+
+      // Rule for 'node:async_hooks'
+      const nodeAsyncHooksRuleExists = config.module.rules.some(
+        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /node:async_hooks/.source
+      );
+      if (!nodeAsyncHooksRuleExists) {
+        config.module.rules.push({
+          test: /^node:async_hooks$/, // Match 'node:async_hooks' exactly
           use: 'null-loader',
         });
       }
