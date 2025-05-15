@@ -12,7 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { gemini15Flash } from '@genkit-ai/googleai'; // Changed from gemini15Pro
+import { gemini15Flash } from '@genkit-ai/googleai';
 
 const QuestionTypeEnum = z.enum(['mcq', 'trueFalse', 'fillInTheBlanks', 'shortAnswer']);
 export type QuestionType = z.infer<typeof QuestionTypeEnum>;
@@ -26,7 +26,7 @@ const GenerateInteractiveQuizInputSchema = z.object({
   numberOfQuestions: z
     .number()
     .min(1)
-    .max(20) 
+    .max(20)
     .default(5)
     .describe('The number of quiz questions to generate.'),
   difficultyLevel: z.enum(['easy', 'medium', 'hard']).default('medium').optional()
@@ -58,7 +58,7 @@ export async function generateInteractiveQuiz(input: GenerateInteractiveQuizInpu
 
 const prompt = ai.definePrompt({
   name: 'generateInteractiveQuizPrompt',
-  model: gemini15Flash, // Changed from gemini15Pro
+  model: gemini15Flash,
   input: {schema: GenerateInteractiveQuizInputSchema},
   output: {schema: GenerateInteractiveQuizOutputSchema},
   prompt: `You are an expert educator specializing in creating quizzes.
@@ -123,24 +123,33 @@ const generateInteractiveQuizFlow = ai.defineFlow(
     outputSchema: GenerateInteractiveQuizOutputSchema,
   },
   async (input) => {
-    // Ensure default questionTypes if empty array is somehow passed
-    if (!input.questionTypes || input.questionTypes.length === 0) {
-      input.questionTypes = ['mcq'];
-    }
-    const {output} = await prompt(input);
-    // Validate output, especially for MCQs and True/False options
-    if (output?.questions) {
+    try {
+      // Ensure default questionTypes if empty array is somehow passed
+      if (!input.questionTypes || input.questionTypes.length === 0) {
+        input.questionTypes = ['mcq'];
+      }
+      const {output} = await prompt(input);
+
+      if (!output || !output.questions) {
+        console.error("generateInteractiveQuizFlow: Prompt returned undefined output or no questions for input:", input, "Output received:", output);
+        throw new Error("AI model failed to generate quiz questions. Output was undefined or malformed.");
+      }
+
+      // Validate output, especially for MCQs and True/False options
       output.questions.forEach(q => {
         if (q.type === 'mcq' && (!q.options || q.options.length !== 4)) {
-          // Attempt to fix or log error. For now, we'll rely on the model adhering to prompt.
           // console.warn("MCQ question does not have 4 options:", q);
+          // Potentially add more robust fixing logic here if needed, or rely on prompt adherence
         }
         if (q.type === 'trueFalse' && (!q.options || q.options.length !== 2 || !q.options.includes("True") || !q.options.includes("False"))) {
           // console.warn("True/False question does not have correct options:", q);
           q.options = ["True", "False"]; // Force correct options
         }
       });
+      return output;
+    } catch (e) {
+      console.error("Error in generateInteractiveQuizFlow with input:", input, "Error:", e);
+      throw new Error(`Failed to generate interactive quiz: ${(e as Error).message}`);
     }
-    return output!;
   }
 );

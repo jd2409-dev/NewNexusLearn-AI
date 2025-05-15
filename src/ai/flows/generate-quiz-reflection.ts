@@ -9,8 +9,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { gemini15Flash } from '@genkit-ai/googleai'; // Changed from gemini15Pro
-import type { PastQuizQuestionDetail as PastQuizQuestionDetailType } from '@/lib/user-service'; // Assuming type is exported
+import { gemini15Flash } from '@genkit-ai/googleai';
+import type { PastQuizQuestionDetail as PastQuizQuestionDetailType } from '@/lib/user-service';
 import type { QuestionType } from '@/ai/flows/generate-interactive-quiz';
 
 
@@ -58,7 +58,7 @@ const formatIncorrectQuestions = (questions: PastQuizQuestionDetailType[]): stri
 
 const prompt = ai.definePrompt({
   name: 'generateQuizReflectionPrompt',
-  model: gemini15Flash, // Changed from gemini15Pro
+  model: gemini15Flash,
   input: {schema: GenerateQuizReflectionInputSchema},
   output: {schema: GenerateQuizReflectionOutputSchema},
   prompt: `You are an expert AI study coach. A student has completed a quiz titled "{{quizName}}"{{#if difficultyLevel}} with a difficulty of "{{difficultyLevel}}"{{/if}}.
@@ -93,13 +93,16 @@ const generateQuizReflectionFlow = ai.defineFlow(
     outputSchema: GenerateQuizReflectionOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) {
-        return {
-            reflectionText: "Could not generate reflection at this time. Please try again later.",
-            identifiedWeaknesses: []
-        };
+    try {
+      const { output } = await prompt(input);
+      if (!output) {
+          console.error("generateQuizReflectionFlow: Prompt returned undefined output for input:", input);
+          throw new Error("AI model failed to generate quiz reflection. Output was undefined.");
+      }
+      return output;
+    } catch (e) {
+      console.error("Error in generateQuizReflectionFlow with input:", input, "Error:", e);
+      throw new Error(`Failed to generate quiz reflection: ${(e as Error).message}`);
     }
-    return output;
   }
 );

@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { gemini15Flash } from '@genkit-ai/googleai'; // Changed from gemini15Pro
+import { gemini15Flash } from '@genkit-ai/googleai';
 
 const ProvideAiStudyCoachingInputSchema = z.object({
   problem: z.string().describe('The problem the student is stuck on.'),
@@ -29,7 +29,7 @@ export async function provideAiStudyCoaching(input: ProvideAiStudyCoachingInput)
 
 const prompt = ai.definePrompt({
   name: 'provideAiStudyCoachingPrompt',
-  model: gemini15Flash, // Changed from gemini15Pro
+  model: gemini15Flash,
   input: {schema: ProvideAiStudyCoachingInputSchema},
   output: {schema: ProvideAiStudyCoachingOutputSchema},
   prompt: `You are an AI study coach that provides step-by-step explanations to students who are stuck on a problem.
@@ -47,7 +47,16 @@ const provideAiStudyCoachingFlow = ai.defineFlow(
     outputSchema: ProvideAiStudyCoachingOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        console.error("provideAiStudyCoachingFlow: Prompt returned undefined output for input:", input);
+        throw new Error("AI model failed to provide study coaching. Output was undefined.");
+      }
+      return output;
+    } catch (e) {
+      console.error("Error in provideAiStudyCoachingFlow with input:", input, "Error:", e);
+      throw new Error(`Failed to provide AI study coaching: ${(e as Error).message}`);
+    }
   }
 );

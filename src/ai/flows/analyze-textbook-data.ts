@@ -4,7 +4,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { gemini15Flash } from '@genkit-ai/googleai'; // Changed from gemini15Pro
+import { gemini15Flash } from '@genkit-ai/googleai';
 
 const AnalyzeTextbookDataInputSchema = z.object({
   pdfDataUri: z
@@ -28,7 +28,7 @@ export async function analyzeTextbookData(input: AnalyzeTextbookDataInput): Prom
 
 const prompt = ai.definePrompt({
   name: 'analyzeTextbookDataPrompt',
-  model: gemini15Flash, // Changed from gemini15Pro
+  model: gemini15Flash,
   input: {schema: AnalyzeTextbookDataInputSchema},
   output: {schema: AnalyzeTextbookDataOutputSchema},
   prompt: `You are an expert at extracting information from textbooks. A student will provide you with a textbook and a question.  You will respond with the direct answer to the question found within the textbook, and the page numbers where the answer was found.
@@ -44,7 +44,16 @@ const analyzeTextbookDataFlow = ai.defineFlow(
     outputSchema: AnalyzeTextbookDataOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        console.error("analyzeTextbookDataFlow: Prompt returned undefined output for input:", input);
+        throw new Error("AI model failed to analyze textbook data. Output was undefined.");
+      }
+      return output;
+    } catch (e) {
+      console.error("Error in analyzeTextbookDataFlow with input:", input, "Error:", e);
+      throw new Error(`Failed to analyze textbook data: ${(e as Error).message}`);
+    }
   }
 );

@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { gemini15Flash } from '@genkit-ai/googleai'; // Changed from gemini15Pro
+import { gemini15Flash } from '@genkit-ai/googleai';
 
 const ProvideWritingAssistanceInputSchema = z.object({
   text: z.string().describe('The text (essay, report, etc.) to be analyzed.'),
@@ -32,7 +32,7 @@ export async function provideWritingAssistance(input: ProvideWritingAssistanceIn
 
 const prompt = ai.definePrompt({
   name: 'provideWritingAssistancePrompt',
-  model: gemini15Flash, // Changed from gemini15Pro
+  model: gemini15Flash,
   input: {schema: ProvideWritingAssistanceInputSchema},
   output: {schema: ProvideWritingAssistanceOutputSchema},
   prompt: `You are an expert writing tutor. A student has submitted a piece of text and is looking for feedback.
@@ -65,7 +65,16 @@ const provideWritingAssistanceFlow = ai.defineFlow(
     outputSchema: ProvideWritingAssistanceOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        console.error("provideWritingAssistanceFlow: Prompt returned undefined output for input:", input);
+        throw new Error("AI model failed to provide writing assistance. Output was undefined.");
+      }
+      return output;
+    } catch (e) {
+      console.error("Error in provideWritingAssistanceFlow with input:", input, "Error:", e);
+      throw new Error(`Failed to provide writing assistance: ${(e as Error).message}`);
+    }
   }
 );
