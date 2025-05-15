@@ -17,6 +17,7 @@ const nextConfig = {
         'pg-native': false,   // Example if 'pg' library is used
         // Add other Node.js core modules here if similar errors appear
       };
+
       // Alias the specific OpenTelemetry modules causing issues on the client
       config.resolve.alias = {
         ...(config.resolve.alias || {}),
@@ -29,11 +30,20 @@ const nextConfig = {
       if (!config.module.rules) {
         config.module.rules = [];
       }
-      config.module.rules.push({
-        test: /async_hooks/,
-        use: 'null-loader',
-      });
+      const asyncHooksRuleExists = config.module.rules.some(
+        (rule) => typeof rule === 'object' && rule.test instanceof RegExp && rule.test.source === /async_hooks/.source
+      );
+      if (!asyncHooksRuleExists) {
+        config.module.rules.push({
+          test: /async_hooks/,
+          use: 'null-loader',
+        });
+      }
     }
+
+    // If issues persist with Turbopack (next dev --turbopack),
+    // they might stem from Turbopack not fully respecting these Webpack configurations.
+    // Testing with `next dev` (which uses Webpack) can help isolate such issues.
 
     return config;
   },
