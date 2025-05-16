@@ -16,8 +16,6 @@ import {z} from 'genkit';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
 // Magic Hour API Configuration
-// IMPORTANT: Replace MAGICHOUR_API_URL_PLACEHOLDER with the actual Magic Hour API endpoint for video generation.
-// Consult Magic Hour documentation for the correct endpoint and payload structure.
 const MAGICHOUR_API_URL_PLACEHOLDER = 'https://api.magichour.ai/v1/generations'; // EXAMPLE - VERIFY THIS
 const MAGICHOUR_API_KEY_FALLBACK = "mhk_live_CwsFFLJMtI32MTp117GQmTjLDAd6rU5HKIKY3XUwO9p5MuQPCYI9klhTLktFMhguCbNlrNgcF5EU3R4t";
 
@@ -48,7 +46,6 @@ const TextExplanationSchema = z.object({
 
 // Schema for the Magic Hour API response (task submission for video generation)
 // This is a GENERIC schema. You MUST adjust it based on Magic Hour's actual response.
-// Common fields include task_id, job_id, status, video_url (when ready), error, message.
 const MagicHourJobInfoSchema = z.object({
   id: z.string().optional().describe('The ID of the video generation task submitted to Magic Hour (e.g., video_id, job_id, task_id).'),
   status: z.string().optional().describe('The initial status of the video generation task (e.g., pending, processing, success, failed).'),
@@ -102,6 +99,7 @@ const imagineExplainerFlow = ai.defineFlow(
 
     if (!MAGICHOUR_API_KEY) {
         console.error("imagineExplainerFlow: CRITICAL - Magic Hour API_KEY is not configured (neither in env nor as fallback). Video generation will fail.");
+        // Return an error structure that matches ImagineExplainerOutputSchema
         return {
             explanation: `Magic Hour API_KEY not configured. Please set the MAGICHOUR_API_KEY environment variable. Cannot generate video. Topic was: ${input.topic}`,
             videoRenderJob: { error: "Magic Hour API_KEY not configured.", message: "Please set the MAGICHOUR_API_KEY environment variable." },
@@ -216,18 +214,20 @@ const imagineExplainerFlow = ai.defineFlow(
       }
       console.log("imagineExplainerFlow: Processed Magic Hour API Data (to be returned):", JSON.stringify(magicHourResponseData, null, 2));
 
-    } catch (e) { 
-      console.error("imagineExplainerFlow: Error during execution (potentially fetch failed):", e);
+    } catch (e) { // Catches errors from explanationPrompt or if fetch itself fails (e.g., DNS, network down)
+      console.error("imagineExplainerFlow: Error during execution (potentially AI explanation or fetch failed):", e);
       const errorMessage = (e as Error).message || "Unknown error during flow execution.";
+      // Ensure magicHourResponseData is an object with an error message
       magicHourResponseData = { 
           error: "Flow execution error or fetch failed", 
           message: `Details: ${errorMessage}. Attempted URL: ${MAGICHOUR_API_URL}. Please ensure the API endpoint is correct and reachable from the server.` 
       };
     }
     
+    // Ensure the output matches the schema even if some parts failed
     return {
-      explanation: aiExplanation,
-      videoRenderJob: magicHourResponseData, 
+      explanation: aiExplanation, // Will be fallback if AI explanation failed
+      videoRenderJob: magicHourResponseData, // Will contain error details if API call failed
     };
   }
 );
