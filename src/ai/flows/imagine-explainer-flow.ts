@@ -4,7 +4,7 @@ console.log("Loading AI Flow: imagine-explainer-flow.ts");
 
 /**
  * @fileOverview Provides simple, imaginative explanations for complex topics
- * and initiates a video generation job using RunwayML.
+ * and initiates a video generation job using Minimax API.
  *
  * - imagineExplainer - A function that generates a simple explanation and starts a video generation task.
  * - ImagineExplainerInput - The input type for the imagineExplainer function.
@@ -15,18 +15,18 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
-// RunwayML API Configuration
-// IMPORTANT: You MUST verify this endpoint with RunwayML's official API documentation for text-to-video.
-const RUNWAYML_API_URL = 'https://api.runwayml.com/v1/tasks'; 
-let RUNWAYML_API_KEY = process.env.RUNWAYML_API_KEY;
+// Minimax API Configuration
+// IMPORTANT: You MUST verify this endpoint with Minimax's official API documentation.
+const MINIMAX_API_URL = 'https://api.minimax.chat/v1/some_video_endpoint'; // REPLACE WITH ACTUAL MINIMAX ENDPOINT
+let MINIMAX_API_KEY = process.env.MINIMAX_API_KEY;
 
-if (!RUNWAYML_API_KEY) {
+if (!MINIMAX_API_KEY) {
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  console.warn("!!! WARNING: RUNWAYML_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
-  console.warn("!!! Falling back to a hardcoded key. THIS IS INSECURE for production. !!!");
-  console.warn("!!! Please set RUNWAYML_API_KEY for proper and secure operation. !!!");
+  console.warn("!!! WARNING: MINIMAX_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
+  console.warn("!!! Video generation will likely fail without a valid API key. !!!");
+  console.warn("!!! Please set MINIMAX_API_KEY for proper and secure operation. !!!");
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  RUNWAYML_API_KEY = 'key_eb1306a1d27ae6d3d2ad8569164d5b51990f5e14bbe4ecd5065467905981ff08eb52562fc2aede60b950b20069c30d213638d0a7661a82967223321976ff6578'; // Updated Fallback Key
+  // No fallback key will be used here. The feature should fail if the key is not set.
 }
 
 
@@ -40,21 +40,21 @@ const TextExplanationSchema = z.object({
   explanation: z.string().describe('A simple, imaginative explanation of the topic.'),
 });
 
-// Schema for the RunwayML API response (task submission)
-// This is a generic schema. You might need to adjust it based on RunwayML's actual response.
-const RunwayMLJobInfoSchema = z.object({
-  task_id: z.string().optional().describe('The ID of the video generation task submitted to RunwayML.'),
-  status: z.string().optional().describe('The initial status of the video generation task (e.g., "pending", "running", "completed", "failed").'),
-  output_url: z.string().optional().describe('URL to the generated video if available immediately (unlikely for initial response).'),
-  error: z.string().nullable().optional().describe('Captures error messages from RunwayML if the task submission itself fails or the task later fails.'),
-  message: z.string().nullable().optional().describe('Additional messages from RunwayML.'),
-  // Add any other fields you expect from RunwayML's initial task response
-}).passthrough(); // passthrough() allows other fields RunwayML might return without schema validation errors.
+// Schema for the Minimax API response (task submission)
+// This is a VERY GENERIC schema. You MUST adjust it based on Minimax's actual response.
+const MinimaxJobInfoSchema = z.object({
+  taskId: z.string().optional().describe('The ID of the video generation task submitted to Minimax.'),
+  status: z.string().optional().describe('The initial status of the video generation task.'),
+  videoUrl: z.string().optional().describe('URL to the generated video if available immediately.'),
+  error: z.string().nullable().optional().describe('Captures error messages from Minimax.'),
+  message: z.string().nullable().optional().describe('Additional messages from Minimax.'),
+  // Add any other fields you expect from Minimax's initial task response
+}).passthrough(); // passthrough() allows other fields Minimax might return without schema validation errors.
 
 
 const ImagineExplainerOutputSchema = z.object({
   explanation: z.string().describe('The AI-generated simple, imaginative explanation of the topic.'),
-  videoRenderJob: RunwayMLJobInfoSchema.nullable().describe('The response from the RunwayML API regarding the video generation task, or null if the API call failed before a structured response was received.'),
+  videoRenderJob: MinimaxJobInfoSchema.nullable().describe('The response from the Minimax API regarding the video generation task, or null if the API call failed before a structured response was received.'),
 });
 export type ImagineExplainerOutput = z.infer<typeof ImagineExplainerOutputSchema>;
 
@@ -91,16 +91,17 @@ const imagineExplainerFlow = ai.defineFlow(
   },
   async (input) => {
     let aiExplanation = `Video about: ${input.topic}`; // Fallback prompt if AI explanation fails
-    let runwayMLResponseData: z.infer<typeof RunwayMLJobInfoSchema> | null = null;
+    let minimaxResponseData: z.infer<typeof MinimaxJobInfoSchema> | null = null;
 
-    if (!RUNWAYML_API_KEY) {
-        console.error("imagineExplainerFlow: CRITICAL - RunwayML API Key is not configured. Video generation will fail.");
-        // Return a specific error structure that the frontend can interpret
+    if (!MINIMAX_API_KEY) {
+        console.error("imagineExplainerFlow: CRITICAL - MINIMAX_API_KEY is not configured. Video generation will fail.");
         return {
-            explanation: "RunwayML API Key not configured. Please set the RUNWAYML_API_KEY environment variable. Cannot generate video explanation.",
-            videoRenderJob: { error: "RunwayML API Key not configured.", message: "Please set the RUNWAYML_API_KEY environment variable." },
+            explanation: "MINIMAX_API_KEY not configured. Please set the MINIMAX_API_KEY environment variable. Cannot generate video explanation.",
+            videoRenderJob: { error: "MINIMAX_API_KEY not configured.", message: "Please set the MINIMAX_API_KEY environment variable." },
         };
     }
+    console.log("imagineExplainerFlow: Using Minimax API Key from environment variable.");
+
 
     try {
       // 1. Generate text explanation using AI
@@ -115,123 +116,100 @@ const imagineExplainerFlow = ai.defineFlow(
         // aiExplanation is already set to fallback
       }
 
-      // 2. Prepare data for RunwayML API
-      // This is a common payload structure for text-to-video.
-      // You MUST consult RunwayML's API documentation for the specific model you intend to use (e.g., Gen-1, Gen-2)
-      // and adjust parameters accordingly (e.g., model_id, duration_seconds, aspect_ratio, seed, etc.).
-      const runwayMLPayload = {
-        text_prompt: aiExplanation,
-        // Example additional parameters (uncomment and adjust as per RunwayML docs):
-        // model_id: "gen-2", // Or "gen-1", or specific model identifier
-        // seed: Math.floor(Math.random() * 100000), // For reproducibility
-        // aspect_ratio: "16:9", // e.g., "16:9", "1:1", "9:16"
-        // duration_seconds: 4, // Desired video duration
-        // motion_score: 0.5, // Controls amount of motion
-        // upscale: false, // Whether to upscale the video
+      // 2. Prepare data for Minimax API
+      // IMPORTANT: This is a GENERIC payload. You MUST consult Minimax's API documentation
+      // for the specific model and parameters required for text-to-video or desired task.
+      const minimaxPayload = {
+        prompt: aiExplanation, // This is a guess, Minimax might call it 'text_input', 'description', etc.
+        topic: input.topic,     // You might need to send the original topic as well
+        // model: "minimax_video_model_xyz", // Example: You'll likely need to specify a model
+        // duration: 5, // Example: Desired video duration in seconds
+        // aspect_ratio: "16:9", // Example
+        // ... other Minimax specific parameters
       };
 
-      // 3. Call RunwayML API
-      console.log("imagineExplainerFlow: Calling RunwayML API at", RUNWAYML_API_URL, "with payload:", JSON.stringify(runwayMLPayload, null, 2).substring(0, 200) + "..."); // Log truncated payload
-      const response = await fetch(RUNWAYML_API_URL, {
+      // 3. Call Minimax API
+      console.log("imagineExplainerFlow: Calling Minimax API at", MINIMAX_API_URL, "with payload:", JSON.stringify(minimaxPayload, null, 2).substring(0, 300) + "..."); // Log truncated payload
+      const response = await fetch(MINIMAX_API_URL, { // Make sure MINIMAX_API_URL is correct
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${RUNWAYML_API_KEY}`,
+          'Authorization': `Bearer ${MINIMAX_API_KEY}`, // Common auth, verify with Minimax
           'Content-Type': 'application/json',
-          'Accept': 'application/json', // Important for some APIs
+          'Accept': 'application/json',
         },
-        body: JSON.stringify(runwayMLPayload)
+        body: JSON.stringify(minimaxPayload)
       });
 
       let parsedJson;
-      const responseText = await response.text(); // Get response text for better error diagnosis
+      const responseText = await response.text(); 
 
       try {
         parsedJson = JSON.parse(responseText);
-        console.log("imagineExplainerFlow: RunwayML API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
+        console.log("imagineExplainerFlow: Minimax API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
       } catch (jsonError) {
-        console.error("imagineExplainerFlow: RunwayML API Failed to parse JSON response. Status:", response.status, "Text:", responseText, "Error:", jsonError);
-        parsedJson = null; // Ensure parsedJson is null if parsing fails
-        // Set runwayMLResponseData based on whether the HTTP call was itself an error or just the JSON parsing
-        if (!response.ok) { // HTTP error like 400, 401, 500
-            runwayMLResponseData = { 
-                error: `HTTP error ${response.status} from RunwayML`, 
-                message: `Failed to submit video task to RunwayML. Server said: ${response.statusText || responseText}`
+        console.error("imagineExplainerFlow: Minimax API Failed to parse JSON response. Status:", response.status, "Text:", responseText, "Error:", jsonError);
+        parsedJson = null; 
+        if (!response.ok) { 
+            minimaxResponseData = { 
+                error: `HTTP error ${response.status} from Minimax`, 
+                message: `Failed to submit video task to Minimax. Server said: ${response.statusText || responseText}`
             };
-        } else { // HTTP 2xx but invalid JSON
-             runwayMLResponseData = { 
-                error: "Invalid JSON response from RunwayML", 
-                message: `Received a non-JSON response from RunwayML despite a success status. Response text: ${responseText}`
+        } else { 
+             minimaxResponseData = { 
+                error: "Invalid JSON response from Minimax", 
+                message: `Received a non-JSON response from Minimax despite a success status. Response text: ${responseText}`
             };
         }
       }
 
-      // If runwayMLResponseData was not set by a JSON parse error, process the parsedJson
-      if (!runwayMLResponseData) {
+      if (!minimaxResponseData) { // If not set by JSON parse error block
         if (response.ok) {
-          // Assuming successful response is the job info object directly or an array containing it
-          if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
-            runwayMLResponseData = parsedJson; 
-          } else if (parsedJson && Array.isArray(parsedJson) && parsedJson.length > 0 && typeof parsedJson[0] === 'object') {
-            // If API returns an array of tasks, take the first one.
-            runwayMLResponseData = parsedJson[0]; 
-            console.warn("imagineExplainerFlow: RunwayML API returned an array of tasks, using the first one.");
+          // IMPORTANT: Adapt this based on Minimax's ACTUAL response structure.
+          // It might return an object directly, or an array, or nest the job info.
+          if (parsedJson && typeof parsedJson === 'object') {
+            minimaxResponseData = parsedJson as z.infer<typeof MinimaxJobInfoSchema>; // Type assertion
+             // Example: if Minimax returns task_id, map it to our schema's taskId
+             if (parsedJson.task_id && !minimaxResponseData.taskId) minimaxResponseData.taskId = parsedJson.task_id;
+             if (parsedJson.url && !minimaxResponseData.videoUrl) minimaxResponseData.videoUrl = parsedJson.url;
+
           } else {
-            // Successful HTTP but unexpected JSON structure
-            console.warn("imagineExplainerFlow: RunwayML API successful, but response format was unexpected or not a single task object:", parsedJson);
-            runwayMLResponseData = {
-              error: "Unexpected response format from RunwayML after success status.",
+            console.warn("imagineExplainerFlow: Minimax API successful, but response format was unexpected:", parsedJson);
+            minimaxResponseData = {
+              error: "Unexpected response format from Minimax after success status.",
               message: parsedJson ? `Received: ${JSON.stringify(parsedJson)}` : (response.statusText || "Response was not valid JSON or was empty."),
             };
           }
-        } else { // !response.ok (HTTP error) and JSON might or might not have parsed
+        } else { // !response.ok (HTTP error)
           if (parsedJson && typeof parsedJson === 'object' && parsedJson !== null) {
-            // If an error JSON was parsed from RunwayML, use it
-            runwayMLResponseData = parsedJson; 
-            // Ensure .error or .message exists if API uses other fields for error details
-            if (!runwayMLResponseData.error && !runwayMLResponseData.message) {
-              runwayMLResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown RunwayML Error'}`;
-              runwayMLResponseData.message = JSON.stringify(parsedJson); // Put the whole object in message if specific error fields absent
+            minimaxResponseData = parsedJson as z.infer<typeof MinimaxJobInfoSchema>;
+            if (!minimaxResponseData.error && !minimaxResponseData.message) {
+              minimaxResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown Minimax Error'}`;
+              minimaxResponseData.message = JSON.stringify(parsedJson);
             }
           } else {
-            // HTTP error and no parsable JSON error object
-            runwayMLResponseData = {
+            minimaxResponseData = {
               error: `HTTP error ${response.status}`,
-              message: response.statusText || responseText || "RunwayML API request failed with non-JSON response.",
+              message: response.statusText || responseText || "Minimax API request failed with non-JSON response.",
             };
           }
         }
       }
-      console.log("imagineExplainerFlow: Processed RunwayML API Data (to be returned):", JSON.stringify(runwayMLResponseData, null, 2));
+      console.log("imagineExplainerFlow: Processed Minimax API Data (to be returned):", JSON.stringify(minimaxResponseData, null, 2));
 
-    } catch (e) { // Catches errors from AI prompt, or network error from fetch, etc. (not API response errors handled above)
-      console.error("imagineExplainerFlow: Error during execution (outside specific API call error handling):", e);
-      // Ensure runwayMLResponseData is an object even if previous steps failed before API call
-      if (!runwayMLResponseData) { 
-          runwayMLResponseData = { error: "Flow execution error", message: (e as Error).message };
-      } else { // If runwayMLResponseData exists from a failed API call, append this flow error
+    } catch (e) { 
+      console.error("imagineExplainerFlow: Error during execution:", e);
+      if (!minimaxResponseData) { 
+          minimaxResponseData = { error: "Flow execution error", message: (e as Error).message };
+      } else { 
           const flowErrorMessage = `Flow error: ${(e as Error).message}`;
-          runwayMLResponseData.error = runwayMLResponseData.error ? `${runwayMLResponseData.error}; ${flowErrorMessage}` : flowErrorMessage;
-          if (!runwayMLResponseData.message) runwayMLResponseData.message = ""; // Ensure message exists
+          minimaxResponseData.error = minimaxResponseData.error ? `${minimaxResponseData.error}; ${flowErrorMessage}` : flowErrorMessage;
+          if (!minimaxResponseData.message) minimaxResponseData.message = ""; 
       }
     }
     
     return {
       explanation: aiExplanation,
-      videoRenderJob: runwayMLResponseData, // This should now match RunwayMLJobInfoSchema or be null
+      videoRenderJob: minimaxResponseData, 
     };
   }
 );
-
-// Useful for debugging: Example input to test the flow
-/*
-(async () => {
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      const result = await imagineExplainer({ topic: "Black Holes" });
-      console.log("Test imagineExplainer result:", JSON.stringify(result, null, 2));
-    } catch (e) {
-      console.error("Test imagineExplainer error:", e);
-    }
-  }
-})();
-*/
