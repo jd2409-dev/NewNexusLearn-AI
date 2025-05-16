@@ -4,7 +4,7 @@ console.log("Loading AI Flow: imagine-explainer-flow.ts");
 
 /**
  * @fileOverview Provides simple, imaginative explanations for complex topics
- * and initiates a video generation job using Hunyuan API.
+ * and initiates a video generation job using Tavus API.
  *
  * - imagineExplainer - A function that generates a simple explanation and starts a video generation task.
  * - ImagineExplainerInput - The input type for the imagineExplainer function.
@@ -15,23 +15,23 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
-// Hunyuan API Configuration
-const HUNYUAN_API_URL_PLACEHOLDER = 'https://api.hunyuan.tencent.com/some_video_endpoint'; // Placeholder
-const HUNYUAN_API_KEY_FALLBACK = "SG_e1cb88f73da1d0bd"; // User provided key
+// Tavus API Configuration
+// IMPORTANT: Replace with the actual Tavus API endpoint for video generation
+const TAVUS_API_URL_PLACEHOLDER = 'https://api.tavus.io/v1/some_video_endpoint'; // EXAMPLE - REPLACE THIS
+const TAVUS_API_KEY_FALLBACK = "e16b9505f1f04365bc55aaf8fb8e660f"; // Your provided key
 
-let HUNYUAN_API_KEY = process.env.HUNYUAN_API_KEY;
-const HUNYUAN_API_URL = process.env.HUNYUAN_API_URL || HUNYUAN_API_URL_PLACEHOLDER;
+let TAVUS_API_KEY = process.env.TAVUS_API_KEY;
+const TAVUS_API_URL = process.env.TAVUS_API_URL || TAVUS_API_URL_PLACEHOLDER;
 
-
-if (!HUNYUAN_API_KEY) {
+if (!TAVUS_API_KEY) {
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  console.warn("!!! WARNING: HUNYUAN_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
-  console.warn("!!! Using fallback API key for Hunyuan. This is insecure for production and might not be valid. !!!");
-  console.warn("!!! Please set HUNYUAN_API_KEY for proper and secure operation. !!!");
+  console.warn("!!! WARNING: TAVUS_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
+  console.warn("!!! Using fallback API key for Tavus. This is insecure for production and might not be valid. !!!");
+  console.warn("!!! Please set TAVUS_API_KEY for proper and secure operation. !!!");
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  HUNYUAN_API_KEY = HUNYUAN_API_KEY_FALLBACK;
+  TAVUS_API_KEY = TAVUS_API_KEY_FALLBACK;
 } else {
-    console.log("imagineExplainerFlow: Using Hunyuan API Key from environment variable.");
+    console.log("imagineExplainerFlow: Using Tavus API Key from environment variable.");
 }
 
 
@@ -45,21 +45,21 @@ const TextExplanationSchema = z.object({
   explanation: z.string().describe('A simple, imaginative explanation of the topic.'),
 });
 
-// Schema for the Hunyuan API response (task submission)
-// This is a VERY GENERIC schema. You MUST adjust it based on Hunyuan's actual response.
-const HunyuanJobInfoSchema = z.object({
-  taskId: z.string().optional().describe('The ID of the video generation task submitted to Hunyuan.'),
+// Schema for the Tavus API response (task submission)
+// This is a VERY GENERIC schema. You MUST adjust it based on Tavus's actual response.
+const TavusJobInfoSchema = z.object({
+  taskId: z.string().optional().describe('The ID of the video generation task submitted to Tavus.'),
   status: z.string().optional().describe('The initial status of the video generation task.'),
   videoUrl: z.string().optional().describe('URL to the generated video if available immediately.'),
-  error: z.string().nullable().optional().describe('Captures error messages from Hunyuan.'),
-  message: z.string().nullable().optional().describe('Additional messages from Hunyuan.'),
-  // Add any other fields you expect from Hunyuan's initial task response
-}).passthrough(); // passthrough() allows other fields Hunyuan might return without schema validation errors.
+  error: z.string().nullable().optional().describe('Captures error messages from Tavus.'),
+  message: z.string().nullable().optional().describe('Additional messages from Tavus.'),
+  // Add any other fields you expect from Tavus's initial task response
+}).passthrough(); // passthrough() allows other fields Tavus might return without schema validation errors.
 
 
 const ImagineExplainerOutputSchema = z.object({
   explanation: z.string().describe('The AI-generated simple, imaginative explanation of the topic.'),
-  videoRenderJob: HunyuanJobInfoSchema.nullable().describe('The response from the Hunyuan API regarding the video generation task, or null if the API call failed before a structured response was received.'),
+  videoRenderJob: TavusJobInfoSchema.nullable().describe('The response from the Tavus API regarding the video generation task, or null if the API call failed before a structured response was received.'),
 });
 export type ImagineExplainerOutput = z.infer<typeof ImagineExplainerOutputSchema>;
 
@@ -96,19 +96,19 @@ const imagineExplainerFlow = ai.defineFlow(
   },
   async (input) => {
     let aiExplanation = `Video about: ${input.topic}`; // Fallback prompt if AI explanation fails
-    let hunyuanResponseData: z.infer<typeof HunyuanJobInfoSchema> | null = null;
+    let tavusResponseData: z.infer<typeof TavusJobInfoSchema> | null = null;
 
-    if (!HUNYUAN_API_KEY) {
-        console.error("imagineExplainerFlow: CRITICAL - Hunyuan API_KEY is not configured. Video generation will fail.");
+    if (!TAVUS_API_KEY) {
+        console.error("imagineExplainerFlow: CRITICAL - Tavus API_KEY is not configured (neither in env nor as fallback). Video generation will fail.");
         return {
-            explanation: "Hunyuan API_KEY not configured. Please set the HUNYUAN_API_KEY environment variable in your .env.local file or deployment settings. Cannot generate video explanation.",
-            videoRenderJob: { error: "Hunyuan API_KEY not configured.", message: "Please set the HUNYUAN_API_KEY environment variable." },
+            explanation: `Tavus API_KEY not configured. Please set the TAVUS_API_KEY environment variable in your .env.local file or deployment settings. Cannot generate video explanation. Topic was: ${input.topic}`,
+            videoRenderJob: { error: "Tavus API_KEY not configured.", message: "Please set the TAVUS_API_KEY environment variable." },
         };
     }
-    if (HUNYUAN_API_URL === HUNYUAN_API_URL_PLACEHOLDER) {
+    if (TAVUS_API_URL === TAVUS_API_URL_PLACEHOLDER) {
         console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        console.warn("!!! WARNING: Using placeholder HUNYUAN_API_URL. This will likely fail. !!!");
-        console.warn("!!! Please set HUNYUAN_API_URL in your .env.local or update the flow with the correct endpoint. !!!");
+        console.warn("!!! WARNING: Using placeholder TAVUS_API_URL. This will likely fail. !!!");
+        console.warn(`!!! Please set TAVUS_API_URL in your .env.local or update the flow with the correct endpoint. Current placeholder: ${TAVUS_API_URL_PLACEHOLDER} !!!`);
         console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     }
 
@@ -126,29 +126,29 @@ const imagineExplainerFlow = ai.defineFlow(
         // aiExplanation is already set to fallback
       }
 
-      // 2. Prepare data for Hunyuan API
-      // IMPORTANT: This is a GENERIC payload. You MUST consult Hunyuan's API documentation
+      // 2. Prepare data for Tavus API
+      // IMPORTANT: This is a GENERIC payload. You MUST consult Tavus's API documentation
       // for the specific model and parameters required for text-to-video or desired task.
-      const hunyuanPayload = {
-        text_prompt: aiExplanation, // This is a guess, Hunyuan might call it 'text_input', 'description', etc.
-        topic_for_context: input.topic, // Sending original topic for context if API supports it
-        // model_id: "hunyuan_video_model_xyz", // Example: You'll likely need to specify a model
+      const tavusPayload = {
+        text_prompt: aiExplanation, // This is a guess, Tavus might call it 'script', 'text_input', 'description', etc.
+        // model_id: "tavus_video_model_xyz", // Example: You'll likely need to specify a model
         // duration_seconds: 10, // Example: Desired video duration in seconds
         // aspect_ratio: "16:9", // Example
-        // ... other Hunyuan specific parameters
+        // webhook_url: "YOUR_WEBHOOK_URL_HERE", // Optional: if Tavus supports webhooks for completion
+        // ... other Tavus specific parameters
       };
 
-      // 3. Call Hunyuan API
-      console.log("imagineExplainerFlow: Calling Hunyuan API at", HUNYUAN_API_URL, "with payload:", JSON.stringify(hunyuanPayload, null, 2).substring(0, 300) + "..."); // Log truncated payload
-      const response = await fetch(HUNYUAN_API_URL, {
+      // 3. Call Tavus API
+      console.log("imagineExplainerFlow: Calling Tavus API at", TAVUS_API_URL, "with payload:", JSON.stringify(tavusPayload, null, 2).substring(0, 300) + "..."); // Log truncated payload
+      const response = await fetch(TAVUS_API_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${HUNYUAN_API_KEY}`, // Common auth, verify with Hunyuan
+          'Authorization': `Bearer ${TAVUS_API_KEY}`, // Common auth, verify with Tavus
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          // Add any other specific headers Hunyuan API requires (e.g., API version, specific 'X-API-Key')
+          // Add any other specific headers Tavus API requires (e.g., API version, specific 'X-API-Key')
         },
-        body: JSON.stringify(hunyuanPayload)
+        body: JSON.stringify(tavusPayload)
       });
 
       let parsedJson;
@@ -156,71 +156,75 @@ const imagineExplainerFlow = ai.defineFlow(
 
       try {
         parsedJson = JSON.parse(responseText);
-        console.log("imagineExplainerFlow: Hunyuan API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
+        console.log("imagineExplainerFlow: Tavus API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
       } catch (jsonError) {
-        console.error("imagineExplainerFlow: Hunyuan API Failed to parse JSON response. Status:", response.status, "Text:", responseText, "Error:", jsonError);
+        console.error("imagineExplainerFlow: Tavus API Failed to parse JSON response. Status:", response.status, "Text:", responseText, "Error:", jsonError);
         parsedJson = null; 
         if (!response.ok) { 
-            hunyuanResponseData = { 
-                error: `HTTP error ${response.status} from Hunyuan`, 
-                message: `Failed to submit video task to Hunyuan. Server said: ${response.statusText || responseText}`
+            tavusResponseData = { 
+                error: `HTTP error ${response.status} from Tavus`, 
+                message: `Failed to submit video task to Tavus. Server said: ${response.statusText || responseText}. Attempted URL: ${TAVUS_API_URL}.`
             };
         } else { 
-             hunyuanResponseData = { 
-                error: "Invalid JSON response from Hunyuan", 
-                message: `Received a non-JSON response from Hunyuan despite a success status. Response text: ${responseText}`
+             tavusResponseData = { 
+                error: "Invalid JSON response from Tavus", 
+                message: `Received a non-JSON response from Tavus despite a success status. Response text: ${responseText}. Attempted URL: ${TAVUS_API_URL}.`
             };
         }
       }
 
-      if (!hunyuanResponseData) { // If not set by JSON parse error block
+      if (!tavusResponseData) { // If not set by JSON parse error block
         if (response.ok) {
-          // IMPORTANT: Adapt this based on Hunyuan's ACTUAL response structure.
+          // IMPORTANT: Adapt this based on Tavus's ACTUAL response structure.
           // It might return an object directly, or an array, or nest the job info.
-          if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) { // Assuming single object response
-            hunyuanResponseData = parsedJson as z.infer<typeof HunyuanJobInfoSchema>;
-             if (parsedJson.task_id && !hunyuanResponseData.taskId) hunyuanResponseData.taskId = parsedJson.task_id;
+          // Assuming single object response for now.
+          if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) { 
+            tavusResponseData = parsedJson as z.infer<typeof TavusJobInfoSchema>;
+             // Try to map common fields if Tavus uses different names, e.g., if Tavus uses 'job_id' instead of 'taskId'
+             if (parsedJson.job_id && !tavusResponseData.taskId) tavusResponseData.taskId = parsedJson.job_id;
+             if (parsedJson.video_url && !tavusResponseData.videoUrl) tavusResponseData.videoUrl = parsedJson.video_url;
           } else if (parsedJson && Array.isArray(parsedJson) && parsedJson.length > 0 && typeof parsedJson[0] === 'object') {
-            console.log("imagineExplainerFlow: Hunyuan API returned an array, taking the first element.");
-            hunyuanResponseData = parsedJson[0] as z.infer<typeof HunyuanJobInfoSchema>;
-            if (parsedJson[0].task_id && !hunyuanResponseData.taskId) hunyuanResponseData.taskId = parsedJson[0].task_id;
+            console.log("imagineExplainerFlow: Tavus API returned an array, taking the first element.");
+            tavusResponseData = parsedJson[0] as z.infer<typeof TavusJobInfoSchema>;
+            if (parsedJson[0].job_id && !tavusResponseData.taskId) tavusResponseData.taskId = parsedJson[0].job_id;
+            if (parsedJson[0].video_url && !tavusResponseData.videoUrl) tavusResponseData.videoUrl = parsedJson[0].video_url;
           } else {
-            console.warn("imagineExplainerFlow: Hunyuan API successful, but response format was unexpected:", parsedJson);
-            hunyuanResponseData = {
-              error: "Unexpected response format from Hunyuan after success status.",
+            console.warn("imagineExplainerFlow: Tavus API successful, but response format was unexpected:", parsedJson);
+            tavusResponseData = {
+              error: "Unexpected response format from Tavus after success status.",
               message: parsedJson ? `Received: ${JSON.stringify(parsedJson)}` : (response.statusText || "Response was not valid JSON or was empty."),
             };
           }
         } else { // !response.ok (HTTP error)
           if (parsedJson && typeof parsedJson === 'object' && parsedJson !== null) {
-            hunyuanResponseData = parsedJson as z.infer<typeof HunyuanJobInfoSchema>;
-            if (!hunyuanResponseData.error && !hunyuanResponseData.message) {
-              hunyuanResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown Hunyuan Error'}`;
-              hunyuanResponseData.message = JSON.stringify(parsedJson);
+            tavusResponseData = parsedJson as z.infer<typeof TavusJobInfoSchema>;
+            if (!tavusResponseData.error && !tavusResponseData.message) { // if API error structure is different
+              tavusResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown Tavus Error'}`;
+              tavusResponseData.message = JSON.stringify(parsedJson); // Put the whole response in message
             }
           } else {
-            hunyuanResponseData = {
+            tavusResponseData = {
               error: `HTTP error ${response.status}`,
-              message: response.statusText || responseText || "Hunyuan API request failed with non-JSON response.",
+              message: response.statusText || responseText || "Tavus API request failed with non-JSON response.",
             };
           }
         }
       }
-      console.log("imagineExplainerFlow: Processed Hunyuan API Data (to be returned):", JSON.stringify(hunyuanResponseData, null, 2));
+      console.log("imagineExplainerFlow: Processed Tavus API Data (to be returned):", JSON.stringify(tavusResponseData, null, 2));
 
     } catch (e) { 
       console.error("imagineExplainerFlow: Error during execution (potentially fetch failed):", e);
-      console.error(`Attempted to fetch: ${HUNYUAN_API_URL}`);
+      console.error(`Attempted to fetch: ${TAVUS_API_URL}`);
       const errorMessage = (e as Error).message || "Unknown error during flow execution.";
-      hunyuanResponseData = { 
+      tavusResponseData = { 
           error: "Flow execution error or fetch failed", 
-          message: `Details: ${errorMessage}. Attempted URL: ${HUNYUAN_API_URL}. Please ensure the API endpoint is correct and reachable from the server.` 
+          message: `Details: ${errorMessage}. Attempted URL: ${TAVUS_API_URL}. Please ensure the API endpoint is correct and reachable from the server.` 
       };
     }
     
     return {
       explanation: aiExplanation,
-      videoRenderJob: hunyuanResponseData, 
+      videoRenderJob: tavusResponseData, 
     };
   }
 );
