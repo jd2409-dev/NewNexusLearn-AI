@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { imagineExplainer, type ImagineExplainerOutput } from "@/ai/flows/imagine-explainer-flow";
-import { Loader2, Sparkles, Shapes, Film, AlertTriangle, Info } from "lucide-react"; 
+import { Loader2, Sparkles, Shapes, Film, AlertTriangle, Info, WifiOff } from "lucide-react"; 
 
 export default function ImagineExplainerPage() {
   const [topic, setTopic] = useState<string>("");
@@ -37,6 +37,7 @@ export default function ImagineExplainerPage() {
       const errorMessage = videoJob?.message || videoJob?.error || "";
       const isApiVersionError = /invalid api version/i.test(errorMessage.toLowerCase()); 
       const isApiKeyError = /API_KEY not configured/i.test(errorMessage.toLowerCase()) || /API key not valid/i.test(errorMessage.toLowerCase());
+      const isFetchFailedError = /fetch failed/i.test(errorMessage.toLowerCase());
 
 
       if (videoJob && (videoJob.error || videoJob.status === 'failed' || videoJob.status === 'error')) {
@@ -45,12 +46,14 @@ export default function ImagineExplainerPage() {
             toastDescription += " Please check Hunyuan API documentation for correct API versioning/endpoints.";
         } else if (isApiKeyError) {
             toastDescription += " Please ensure your HUNYUAN_API_KEY is correctly set in your environment variables.";
+        } else if (isFetchFailedError) {
+            toastDescription += " The server could not connect to the Hunyuan API. Please verify the API endpoint URL and ensure the server has network access to it.";
         }
         toast({
             title: "Video Generation Task Issue (Hunyuan)",
             description: toastDescription,
             variant: "destructive",
-            duration: 10000,
+            duration: 12000,
         });
       } else if (videoJob && (videoJob.taskId || videoJob.videoUrl)) { 
          toast({
@@ -66,20 +69,32 @@ export default function ImagineExplainerPage() {
             duration: 7000,
          });
       } else {
+        // General failure, possibly API key related if caught early by the flow
         const errorDetails = videoJob?.error || videoJob?.message || explanationResult.explanation || 'No specific details from video service or explanation generation.';
+        let toastDescription = `Could not generate a full explanation or reliably start video generation with Hunyuan. Details: ${errorDetails}`;
+        if (isApiKeyError) {
+           toastDescription += " Please ensure your HUNYUAN_API_KEY is correctly set in your server's environment variables.";
+        } else if (isFetchFailedError) {
+            toastDescription += " The server could not connect to the Hunyuan API. Please verify the API endpoint URL and ensure the server has network access to it.";
+        }
         toast({
             title: "Operation Incomplete (Hunyuan)",
-            description: `Could not generate a full explanation or reliably start video generation with Hunyuan. Details: ${errorDetails}`,
+            description: toastDescription,
             variant: "destructive",
-            duration: 10000,
+            duration: 12000,
         });
       }
     } catch (error) {
       console.error("Imagine Explainer page error (Hunyuan):", error);
+      let toastDescription = (error as Error).message || "An unexpected error occurred while trying to get an explanation or start video creation with Hunyuan.";
+      if ( /fetch failed/i.test(toastDescription.toLowerCase())) {
+         toastDescription += " This often means the server could not reach the Hunyuan API. Check the API endpoint URL and server network connectivity.";
+      }
       toast({
         title: "Operation Failed (Hunyuan)",
-        description: (error as Error).message || "An unexpected error occurred while trying to get an explanation or start video creation with Hunyuan.",
+        description: toastDescription,
         variant: "destructive",
+        duration: 12000,
       });
     } finally {
       setIsLoading(false);
@@ -103,6 +118,7 @@ export default function ImagineExplainerPage() {
             </span>
              <span className="text-xs text-destructive/80 block mt-1">
                 <Info className="inline-block h-3 w-3 mr-1" /> Important: Ensure `HUNYUAN_API_KEY` is set in your server's environment variables (e.g., `.env.local`) for this feature to work securely and correctly.
+                 Also, ensure `HUNYUAN_API_URL` is correctly set if you are overriding the placeholder.
             </span>
           </CardDescription>
         </CardHeader>
@@ -148,7 +164,7 @@ export default function ImagineExplainerPage() {
                 <h3 className="text-lg font-semibold mb-2 flex items-center">
                     <Film className="mr-2 h-5 w-5 text-primary" /> Video Generation Task (Hunyuan):
                 </h3>
-                {result.videoRenderJob.error || result.videoRenderJob.status === 'failed' || result.videoRenderJob.status === 'error' ? (
+                {(result.videoRenderJob.error || result.videoRenderJob.status === 'failed' || result.videoRenderJob.status === 'error') ? (
                     <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-md">
                         <h4 className="font-semibold text-destructive flex items-center">
                             <AlertTriangle className="mr-2 h-5 w-5" /> Error/Issue with Video Generation Task:
@@ -161,6 +177,9 @@ export default function ImagineExplainerPage() {
                         }
                         { /invalid api version/i.test((result.videoRenderJob.message || result.videoRenderJob.error || "").toLowerCase()) &&
                             <p className="text-xs text-destructive mt-1">This error often indicates an API version mismatch or incorrect endpoint. Please consult the official Hunyuan API documentation for the correct API versioning, endpoint, and payload structure for your desired task.</p>
+                        }
+                        { /fetch failed/i.test((result.videoRenderJob.message || result.videoRenderJob.error || "").toLowerCase()) &&
+                            <p className="text-xs text-destructive mt-1 flex items-center"><WifiOff className="h-4 w-4 mr-1"/>The server could not connect to the Hunyuan API. Please verify the API endpoint URL (currently trying: <code className="text-xs bg-destructive/20 p-0.5 rounded">{result.videoRenderJob.message?.split('Attempted URL: ')?.[1]?.split('.')[0] || 'configured URL'}</code>) and ensure the server has network access. Also, check if `HUNYUAN_API_URL` environment variable is correctly set if you are not using the placeholder.</p>
                         }
                     </div>
                 ) : (

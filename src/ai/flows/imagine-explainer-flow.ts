@@ -16,16 +16,17 @@ import {z} from 'genkit';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
 // Hunyuan API Configuration
-// IMPORTANT: You MUST verify this endpoint with Hunyuan's official API documentation.
-const HUNYUAN_API_URL = 'https://api.hunyuan.tencent.com/some_video_endpoint'; // REPLACE WITH ACTUAL HUNYUAN VIDEO ENDPOINT
+const HUNYUAN_API_URL_PLACEHOLDER = 'https://api.hunyuan.tencent.com/some_video_endpoint'; // Placeholder
 const HUNYUAN_API_KEY_FALLBACK = "SG_e1cb88f73da1d0bd"; // User provided key
 
 let HUNYUAN_API_KEY = process.env.HUNYUAN_API_KEY;
+const HUNYUAN_API_URL = process.env.HUNYUAN_API_URL || HUNYUAN_API_URL_PLACEHOLDER;
+
 
 if (!HUNYUAN_API_KEY) {
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   console.warn("!!! WARNING: HUNYUAN_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
-  console.warn("!!! Using fallback API key for Hunyuan. This is insecure for production. !!!");
+  console.warn("!!! Using fallback API key for Hunyuan. This is insecure for production and might not be valid. !!!");
   console.warn("!!! Please set HUNYUAN_API_KEY for proper and secure operation. !!!");
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   HUNYUAN_API_KEY = HUNYUAN_API_KEY_FALLBACK;
@@ -97,13 +98,20 @@ const imagineExplainerFlow = ai.defineFlow(
     let aiExplanation = `Video about: ${input.topic}`; // Fallback prompt if AI explanation fails
     let hunyuanResponseData: z.infer<typeof HunyuanJobInfoSchema> | null = null;
 
-    if (!HUNYUAN_API_KEY) { // Double check after potential fallback logic
+    if (!HUNYUAN_API_KEY) {
         console.error("imagineExplainerFlow: CRITICAL - Hunyuan API_KEY is not configured. Video generation will fail.");
         return {
-            explanation: "Hunyuan API_KEY not configured. Please set the HUNYUAN_API_KEY environment variable. Cannot generate video explanation.",
+            explanation: "Hunyuan API_KEY not configured. Please set the HUNYUAN_API_KEY environment variable in your .env.local file or deployment settings. Cannot generate video explanation.",
             videoRenderJob: { error: "Hunyuan API_KEY not configured.", message: "Please set the HUNYUAN_API_KEY environment variable." },
         };
     }
+    if (HUNYUAN_API_URL === HUNYUAN_API_URL_PLACEHOLDER) {
+        console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        console.warn("!!! WARNING: Using placeholder HUNYUAN_API_URL. This will likely fail. !!!");
+        console.warn("!!! Please set HUNYUAN_API_URL in your .env.local or update the flow with the correct endpoint. !!!");
+        console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    }
+
 
     try {
       // 1. Generate text explanation using AI
@@ -123,6 +131,7 @@ const imagineExplainerFlow = ai.defineFlow(
       // for the specific model and parameters required for text-to-video or desired task.
       const hunyuanPayload = {
         text_prompt: aiExplanation, // This is a guess, Hunyuan might call it 'text_input', 'description', etc.
+        topic_for_context: input.topic, // Sending original topic for context if API supports it
         // model_id: "hunyuan_video_model_xyz", // Example: You'll likely need to specify a model
         // duration_seconds: 10, // Example: Desired video duration in seconds
         // aspect_ratio: "16:9", // Example
@@ -137,7 +146,7 @@ const imagineExplainerFlow = ai.defineFlow(
           'Authorization': `Bearer ${HUNYUAN_API_KEY}`, // Common auth, verify with Hunyuan
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          // Add any other specific headers Hunyuan API requires (e.g., API version)
+          // Add any other specific headers Hunyuan API requires (e.g., API version, specific 'X-API-Key')
         },
         body: JSON.stringify(hunyuanPayload)
       });
@@ -170,16 +179,11 @@ const imagineExplainerFlow = ai.defineFlow(
           // It might return an object directly, or an array, or nest the job info.
           if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) { // Assuming single object response
             hunyuanResponseData = parsedJson as z.infer<typeof HunyuanJobInfoSchema>;
-             // Example: if Hunyuan returns task_id, map it to our schema's taskId
              if (parsedJson.task_id && !hunyuanResponseData.taskId) hunyuanResponseData.taskId = parsedJson.task_id;
-             // if (parsedJson.video_url && !hunyuanResponseData.videoUrl) hunyuanResponseData.videoUrl = parsedJson.video_url;
-
           } else if (parsedJson && Array.isArray(parsedJson) && parsedJson.length > 0 && typeof parsedJson[0] === 'object') {
-            // If Hunyuan returns an array of tasks, take the first one
             console.log("imagineExplainerFlow: Hunyuan API returned an array, taking the first element.");
             hunyuanResponseData = parsedJson[0] as z.infer<typeof HunyuanJobInfoSchema>;
             if (parsedJson[0].task_id && !hunyuanResponseData.taskId) hunyuanResponseData.taskId = parsedJson[0].task_id;
-
           } else {
             console.warn("imagineExplainerFlow: Hunyuan API successful, but response format was unexpected:", parsedJson);
             hunyuanResponseData = {
@@ -205,14 +209,13 @@ const imagineExplainerFlow = ai.defineFlow(
       console.log("imagineExplainerFlow: Processed Hunyuan API Data (to be returned):", JSON.stringify(hunyuanResponseData, null, 2));
 
     } catch (e) { 
-      console.error("imagineExplainerFlow: Error during execution:", e);
-      if (!hunyuanResponseData) { 
-          hunyuanResponseData = { error: "Flow execution error", message: (e as Error).message };
-      } else { 
-          const flowErrorMessage = `Flow error: ${(e as Error).message}`;
-          hunyuanResponseData.error = hunyuanResponseData.error ? `${hunyuanResponseData.error}; ${flowErrorMessage}` : flowErrorMessage;
-          if (!hunyuanResponseData.message) hunyuanResponseData.message = ""; 
-      }
+      console.error("imagineExplainerFlow: Error during execution (potentially fetch failed):", e);
+      console.error(`Attempted to fetch: ${HUNYUAN_API_URL}`);
+      const errorMessage = (e as Error).message || "Unknown error during flow execution.";
+      hunyuanResponseData = { 
+          error: "Flow execution error or fetch failed", 
+          message: `Details: ${errorMessage}. Attempted URL: ${HUNYUAN_API_URL}. Please ensure the API endpoint is correct and reachable from the server.` 
+      };
     }
     
     return {
