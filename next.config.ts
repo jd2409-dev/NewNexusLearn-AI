@@ -11,22 +11,22 @@ const nextConfig = {
         async_hooks: false, // For 'async_hooks'
         "node:async_hooks": false, // Explicitly for 'node:async_hooks'
         fs: false,
-        net: false,
-        tls: false,
-        dns: false,
-        dgram: false,
-        http2: false,
-        child_process: false,
-        perf_hooks: false,
-        'pg-native': false, // If pg-native is ever a transitive dependency
         "node:fs": false,
+        net: false,
         "node:net": false,
+        tls: false,
         "node:tls": false,
+        dns: false,
         "node:dns": false,
+        dgram: false,
         "node:dgram": false,
+        http2: false,
         "node:http2": false,
+        child_process: false,
         "node:child_process": false,
+        perf_hooks: false,
         "node:perf_hooks": false,
+        'pg-native': false, // If pg-native is ever a transitive dependency
       };
 
       // Alias problematic modules (especially server-side ones) to false
@@ -48,13 +48,11 @@ const nextConfig = {
       };
 
       // Use null-loader for specific Node.js modules to replace them with an empty module.
-      // This is an additional layer of defense.
       if (!config.module.rules) {
         config.module.rules = [];
       }
 
       // Unconditionally add null-loader rules for async_hooks and node:async_hooks
-      // This is safer than complex conditional checks that might fail.
       config.module.rules.push({
         test: /^async_hooks$/, // Match 'async_hooks' exactly
         use: 'null-loader',
