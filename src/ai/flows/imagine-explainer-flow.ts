@@ -15,9 +15,19 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
-// RunwayML API Configuration - !!! IMPORTANT: MOVE API KEY TO ENVIRONMENT VARIABLES FOR PRODUCTION !!!
-const RUNWAYML_API_URL = 'https://api.runwayml.com/v1/tasks'; // This is a common task endpoint, verify with RunwayML docs
-const RUNWAYML_API_KEY = 'key_9e6bd9b32fb076aa58e6bf3a80cdc26fa45d83e65a29cbdda5609b38c1672a5b5d9c143376c15e87b53f626c4261a610ac4a4aaf3437fe1ab4f5bd3b27bb3fbd'; // Your provided API key
+// RunwayML API Configuration
+const RUNWAYML_API_URL = 'https://api.runwayml.com/v1/tasks'; // Verify with RunwayML docs for specific text-to-video model
+let RUNWAYML_API_KEY = process.env.RUNWAYML_API_KEY;
+
+if (!RUNWAYML_API_KEY) {
+  console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  console.warn("!!! WARNING: RUNWAYML_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
+  console.warn("!!! Falling back to a hardcoded key. THIS IS INSECURE for production. !!!");
+  console.warn("!!! Please set RUNWAYML_API_KEY for proper and secure operation. !!!");
+  console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  RUNWAYML_API_KEY = 'key_9e6bd9b32fb076aa58e6bf3a80cdc26fa45d83e65a29cbdda5609b38c1672a5b5d9c143376c15e87b53f626c4261a610ac4a4aaf3437fe1ab4f5bd3b27bb3fbd'; // Fallback
+}
+
 
 const ImagineExplainerInputSchema = z.object({
   topic: z.string().describe('The complex topic to be explained simply and used for the video.'),
@@ -37,6 +47,7 @@ const RunwayMLJobInfoSchema = z.object({
   output_url: z.string().optional().describe('URL to the generated video if available immediately (unlikely for initial response).'),
   error: z.string().nullable().optional().describe('Captures error messages from RunwayML if the task submission itself fails or the task later fails.'),
   message: z.string().nullable().optional().describe('Additional messages from RunwayML.'),
+  // Add any other fields you expect from RunwayML's initial task response
 }).passthrough();
 
 
@@ -78,28 +89,37 @@ const imagineExplainerFlow = ai.defineFlow(
     outputSchema: ImagineExplainerOutputSchema,
   },
   async (input) => {
-    let aiExplanation = "Could not generate explanation.";
+    let aiExplanation = `Video about: ${input.topic}`; // Fallback prompt
     let runwayMLResponseData: z.infer<typeof RunwayMLJobInfoSchema> | null = null;
+
+    if (!RUNWAYML_API_KEY) {
+        console.error("imagineExplainerFlow: CRITICAL - RunwayML API Key is not configured. Video generation will fail.");
+        return {
+            explanation: "RunwayML API Key not configured. Cannot generate video explanation.",
+            videoRenderJob: { error: "RunwayML API Key not configured.", message: "Please set the RUNWAYML_API_KEY environment variable." },
+        };
+    }
 
     try {
       // 1. Generate text explanation using AI
+      console.log("imagineExplainerFlow: Generating text explanation for topic:", input.topic);
       const { output: explanationOutput } = await explanationPrompt(input);
-      if (!explanationOutput || typeof explanationOutput.explanation !== 'string' || explanationOutput.explanation.trim() === "") {
-        console.error("imagineExplainerFlow: AI prompt returned undefined, malformed, or empty output for input:", input, "Output received:", explanationOutput);
-        // Fallback explanation "Could not generate explanation." is already set
-        // We can still attempt video generation with just the topic if explanation fails
-        aiExplanation = `Video about: ${input.topic}`; 
-      } else {
+      
+      if (explanationOutput && typeof explanationOutput.explanation === 'string' && explanationOutput.explanation.trim() !== "") {
         aiExplanation = explanationOutput.explanation;
+        console.log("imagineExplainerFlow: AI explanation generated successfully.");
+      } else {
+        console.warn("imagineExplainerFlow: AI prompt returned undefined, malformed, or empty output for input:", input, "Output received:", explanationOutput, "Using fallback prompt for video.");
+        // aiExplanation is already set to fallback
       }
 
       // 2. Prepare data for RunwayML API
       // This is a common payload structure for text-to-video.
-      // You may need to add/modify parameters based on RunwayML's specific API documentation
-      // for the model you intend to use (e.g., Gen-1, Gen-2).
+      // You MUST consult RunwayML's API documentation for the specific model you intend to use
+      // and adjust parameters accordingly (e.g., model_id, duration_seconds, aspect_ratio, seed, etc.).
       const runwayMLPayload = {
         text_prompt: aiExplanation,
-        // Common additional parameters (uncomment and adjust as needed, check RunwayML docs):
+        // Example additional parameters (uncomment and adjust as per RunwayML docs):
         // model_id: "gen-2", // Or "gen-1", or specific model identifier
         // seed: Math.floor(Math.random() * 100000), // For reproducibility
         // aspect_ratio: "16:9", // e.g., "16:9", "1:1", "9:16"
@@ -109,11 +129,11 @@ const imagineExplainerFlow = ai.defineFlow(
       };
 
       // 3. Call RunwayML API
-      console.log("Calling RunwayML API with payload:", JSON.stringify(runwayMLPayload, null, 2));
+      console.log("imagineExplainerFlow: Calling RunwayML API at", RUNWAYML_API_URL, "with payload:", JSON.stringify(runwayMLPayload, null, 2).substring(0, 200) + "..."); // Log truncated payload
       const response = await fetch(RUNWAYML_API_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${RUNWAYML_API_KEY}`, // Ensure RUNWAYML_API_KEY is correctly set
+          'Authorization': `Bearer ${RUNWAYML_API_KEY}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
@@ -125,15 +145,14 @@ const imagineExplainerFlow = ai.defineFlow(
 
       try {
         parsedJson = JSON.parse(responseText);
-        console.log("RunwayML API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
+        console.log("imagineExplainerFlow: RunwayML API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
       } catch (jsonError) {
-        console.error("RunwayML API: Failed to parse JSON response. Text:", responseText, "Error:", jsonError);
+        console.error("imagineExplainerFlow: RunwayML API Failed to parse JSON response. Status:", response.status, "Text:", responseText, "Error:", jsonError);
         parsedJson = null;
-        // Create an error object for runwayMLResponseData
         if (!response.ok) {
             runwayMLResponseData = { 
-                error: `HTTP error ${response.status}`, 
-                message: `Failed to process video request: Non-JSON error response from RunwayML. Server said: ${response.statusText || responseText}`
+                error: `HTTP error ${response.status} from RunwayML`, 
+                message: `Failed to submit video task to RunwayML. Server said: ${response.statusText || responseText}`
             };
         } else {
              runwayMLResponseData = { 
@@ -145,16 +164,14 @@ const imagineExplainerFlow = ai.defineFlow(
 
       if (!runwayMLResponseData) { // If not already set by JSON parse error handling
         if (response.ok) {
-          // Assuming successful response is the job info object directly
-          // Validate if parsedJson is an object and not an array
+          // Assuming successful response is the job info object directly or an array containing it
           if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
-            runwayMLResponseData = parsedJson; // Directly assign if it's a single object
+            runwayMLResponseData = parsedJson; 
           } else if (parsedJson && Array.isArray(parsedJson) && parsedJson.length > 0 && typeof parsedJson[0] === 'object') {
-            // If it's an array of objects (some APIs return this), take the first element.
-            runwayMLResponseData = parsedJson[0];
-            console.warn("RunwayML API returned an array of tasks, using the first one.");
+            runwayMLResponseData = parsedJson[0]; // Take the first task object if API returns an array
+            console.warn("imagineExplainerFlow: RunwayML API returned an array of tasks, using the first one.");
           } else {
-            console.warn("RunwayML API successful, but response format was unexpected or not a single task object:", parsedJson);
+            console.warn("imagineExplainerFlow: RunwayML API successful, but response format was unexpected or not a single task object:", parsedJson);
             runwayMLResponseData = {
               error: "Unexpected response format from RunwayML after success status.",
               message: parsedJson ? `Received: ${JSON.stringify(parsedJson)}` : (response.statusText || "Response was not valid JSON or was empty."),
@@ -162,11 +179,10 @@ const imagineExplainerFlow = ai.defineFlow(
           }
         } else { // !response.ok (HTTP error)
           if (parsedJson && typeof parsedJson === 'object' && parsedJson !== null) {
-            runwayMLResponseData = parsedJson; // Assign the error object from Runway
-            // Ensure 'error' or 'message' field is populated for frontend display
+            runwayMLResponseData = parsedJson; 
             if (!runwayMLResponseData.error && !runwayMLResponseData.message) {
               runwayMLResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown RunwayML Error'}`;
-              runwayMLResponseData.message = JSON.stringify(parsedJson); // Put raw error object into message
+              runwayMLResponseData.message = JSON.stringify(parsedJson); 
             }
           } else {
             runwayMLResponseData = {
@@ -176,23 +192,23 @@ const imagineExplainerFlow = ai.defineFlow(
           }
         }
       }
-      console.log("Processed RunwayML API Data (to be returned):", JSON.stringify(runwayMLResponseData, null, 2));
+      console.log("imagineExplainerFlow: Processed RunwayML API Data (to be returned):", JSON.stringify(runwayMLResponseData, null, 2));
 
     } catch (e) { // Catches errors from AI prompt, or network error from fetch, etc.
-      console.error("Error in imagineExplainerFlow execution (outside API call):", e);
-      // Ensure runwayMLResponseData is an error object if it's not already set
+      console.error("imagineExplainerFlow: Error during execution (outside specific API call error handling):", e);
       if (!runwayMLResponseData) { 
           runwayMLResponseData = { error: "Flow execution error", message: (e as Error).message };
-      } else if (runwayMLResponseData) { // If it was already set by API error, append flow error info
+      } else { 
           const flowErrorMessage = `Flow error: ${(e as Error).message}`;
           runwayMLResponseData.error = runwayMLResponseData.error ? `${runwayMLResponseData.error}; ${flowErrorMessage}` : flowErrorMessage;
-          if (!runwayMLResponseData.message) runwayMLResponseData.message = ""; // ensure message is not undefined
+          if (!runwayMLResponseData.message) runwayMLResponseData.message = "";
       }
     }
     
     return {
       explanation: aiExplanation,
-      videoRenderJob: runwayMLResponseData, // This should now be an object or null
+      videoRenderJob: runwayMLResponseData, 
     };
   }
 );
+

@@ -1,6 +1,7 @@
 {
   "projects": {
-    "prod": "nexuslearn-ai-sfdbq"
+    "prod": "nexuslearn-ai-sfdbq",
+    "default": "nexuslearn-ai-sfdbq"
   },
   "targets": {},
   "etags": {}

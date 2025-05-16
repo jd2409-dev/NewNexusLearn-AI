@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { imagineExplainer, type ImagineExplainerOutput } from "@/ai/flows/imagine-explainer-flow";
-import { Loader2, Sparkles, Shapes, Film, AlertTriangle } from "lucide-react"; 
+import { Loader2, Sparkles, Shapes, Film, AlertTriangle, Info } from "lucide-react"; 
 
 export default function ImagineExplainerPage() {
   const [topic, setTopic] = useState<string>("");
@@ -46,17 +46,19 @@ export default function ImagineExplainerPage() {
             description: `The Imagine Explainer worked its magic. Video generation task submitted to RunwayML (Task ID: ${explanationResult.videoRenderJob.task_id}, Status: ${explanationResult.videoRenderJob.status || 'Submitted'}). This may take some time. Check RunwayML for progress.`,
             duration: 10000,
         });
-      } else if (explanationResult.explanation && explanationResult.explanation !== "Could not generate explanation.") {
+      } else if (explanationResult.explanation && explanationResult.explanation !== "Could not generate explanation." && explanationResult.explanation !== "RunwayML API Key not configured. Cannot generate video explanation.") {
          toast({
             title: "Explanation Ready!",
-            description: "The Imagine Explainer generated an explanation. Video generation task could not be initiated or status is unknown. Check RunwayML info below.",
+            description: "The Imagine Explainer generated an explanation. Video generation task could not be reliably initiated or status is unknown. Check RunwayML info below.",
             variant: "default",
             duration: 7000,
          });
       } else {
+        // Covers cases like API key missing, or AI explanation failed AND video job failed
+        const errorDetails = explanationResult.videoRenderJob?.error || explanationResult.videoRenderJob?.message || explanationResult.explanation || 'No specific details from video service or explanation generation.';
         toast({
             title: "Operation Incomplete",
-            description: `Could not generate a full explanation or reliably start video generation. RunwayML info: ${explanationResult.videoRenderJob?.error || explanationResult.videoRenderJob?.message || 'No details from video service.'}`,
+            description: `Could not generate a full explanation or reliably start video generation. Details: ${errorDetails}`,
             variant: "destructive",
             duration: 10000,
         });
@@ -80,13 +82,15 @@ export default function ImagineExplainerPage() {
           <CardTitle className="text-2xl flex items-center">
             <Shapes className="mr-3 h-7 w-7 text-primary" /> Imagine Explainer & Video Creator (via RunwayML)
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="space-y-1">
             Get a simple AI explanation for a complex topic, and initiate a text-to-video generation task using RunwayML!
             <br />
             <span className="text-xs text-muted-foreground">
-                Video generation uses the RunwayML API. Ensure your API key is correctly configured in the backend.
-                This page only initiates the task; it doesn't poll for completion. Check RunwayML with the Task ID.
+                Video generation uses the RunwayML API. This page only initiates the task; it doesn't poll for completion. Check RunwayML with the Task ID.
                 The AI-generated text explanation will be used as the prompt for video generation.
+            </span>
+             <span className="text-xs text-destructive/80 block mt-1">
+                <Info className="inline-block h-3 w-3 mr-1" /> Important: Ensure `RUNWAYML_API_KEY` is set in your server's environment variables for this feature to work securely and correctly.
             </span>
           </CardDescription>
         </CardHeader>
@@ -121,7 +125,7 @@ export default function ImagineExplainerPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-1">AI Explanation for "{result.videoRenderJob?.text_prompt ? (topic || 'your topic') : (topic || 'your topic')}" (used as video prompt):</h3>
+              <h3 className="text-lg font-semibold mb-1">AI Explanation for "{topic || 'your topic'}" (used as video prompt):</h3>
               <div className="prose prose-sm dark:prose-invert max-w-none p-4 bg-background rounded-md shadow">
                 <p className="whitespace-pre-wrap text-sm">{result.explanation}</p>
               </div>
@@ -140,6 +144,9 @@ export default function ImagineExplainerPage() {
                         <p className="text-sm text-destructive/90"><strong>Task ID:</strong> {result.videoRenderJob.task_id || "N/A"}</p>
                         <p className="text-sm text-destructive/90"><strong>Status:</strong> {result.videoRenderJob.status || "Unknown"}</p>
                         <p className="text-sm text-destructive/90"><strong>Details:</strong> {result.videoRenderJob.message || result.videoRenderJob.error || "An issue occurred with the video generation task."}</p>
+                         { (result.videoRenderJob.error || "").includes("API Key not configured") && 
+                           <p className="text-xs text-destructive mt-2">Please ensure the `RUNWAYML_API_KEY` is correctly set in your server's environment variables.</p>
+                        }
                     </div>
                 ) : (
                     <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-md space-y-1">
@@ -148,17 +155,15 @@ export default function ImagineExplainerPage() {
                         {result.videoRenderJob.output_url && (
                              <p className="text-sm"><strong className="font-medium">Video URL (if ready):</strong> <a href={result.videoRenderJob.output_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">{result.videoRenderJob.output_url}</a></p>
                         )}
-                         {result.videoRenderJob.snapshot_url && ( // Assuming snapshot_url might be available
-                             <p className="text-sm"><strong className="font-medium">Snapshot URL:</strong> <a href={result.videoRenderJob.snapshot_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">{result.videoRenderJob.snapshot_url}</a></p>
-                        )}
                         <p className="text-xs text-muted-foreground mt-2">
                             Note: Video generation is initiated with RunwayML and may take some time. This page does not auto-refresh video status. You might need to check your RunwayML dashboard using the Task ID for progress and the final video.
+                            Consult RunwayML documentation for details on specific models and parameters.
                         </p>
                     </div>
                 )}
               </div>
             )}
-             {!result.videoRenderJob && result.explanation !== "Could not generate explanation." && (
+             {!result.videoRenderJob && result.explanation !== "Could not generate explanation." && result.explanation !== "RunwayML API Key not configured. Cannot generate video explanation." && (
                 <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-md">
                     <h4 className="font-semibold text-yellow-700 dark:text-yellow-400 flex items-center">
                         <AlertTriangle className="mr-2 h-5 w-5" /> Video Generation Not Started or Failed Early
@@ -177,3 +182,4 @@ export default function ImagineExplainerPage() {
     </div>
   );
 }
+
