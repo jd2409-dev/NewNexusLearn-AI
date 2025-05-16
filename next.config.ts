@@ -53,41 +53,17 @@ const nextConfig = {
         config.module.rules = [];
       }
 
-      // Rule for 'async_hooks' (without node: prefix)
-      // Ensures that if a module tries to require 'async_hooks', it gets an empty module.
-      const asyncHooksRuleExists = config.module.rules.some(
-        (rule) =>
-          typeof rule === 'object' &&
-          rule !== null && // Ensure rule is not null
-          rule.test instanceof RegExp &&
-          rule.test.source === /^async_hooks$/.source && // Match 'async_hooks' exactly
-          Array.isArray(rule.use) &&
-          rule.use.some((u) => typeof u === 'object' && u !== null && u.loader === 'null-loader')
-      );
-      if (!asyncHooksRuleExists) {
-        config.module.rules.push({
-          test: /^async_hooks$/, // Match 'async_hooks' exactly
-          use: 'null-loader',
-        });
-      }
+      // Unconditionally add null-loader rules for async_hooks and node:async_hooks
+      // This is safer than complex conditional checks that might fail.
+      config.module.rules.push({
+        test: /^async_hooks$/, // Match 'async_hooks' exactly
+        use: 'null-loader',
+      });
 
-      // Rule for 'node:async_hooks'
-      // This specifically targets the "node:async_hooks" import scheme.
-      const nodeAsyncHooksRuleExists = config.module.rules.some(
-        (rule) =>
-          typeof rule === 'object' &&
-          rule !== null && // Ensure rule is not null
-          rule.test instanceof RegExp &&
-          rule.test.source === /^node:async_hooks$/.source && // Match 'node:async_hooks' exactly
-          Array.isArray(rule.use) &&
-          rule.use.some((u) => typeof u === 'object' && u !== null && u.loader === 'null-loader')
-      );
-      if (!nodeAsyncHooksRuleExists) {
-        config.module.rules.push({
-          test: /^node:async_hooks$/, // Match 'node:async_hooks' exactly
-          use: 'null-loader',
-        });
-      }
+      config.module.rules.push({
+        test: /^node:async_hooks$/, // Match 'node:async_hooks' exactly
+        use: 'null-loader',
+      });
     }
 
     // Comment for Turbopack users:
