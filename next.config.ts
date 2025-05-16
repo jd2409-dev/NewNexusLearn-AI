@@ -58,10 +58,11 @@ const nextConfig = {
       const asyncHooksRuleExists = config.module.rules.some(
         (rule) =>
           typeof rule === 'object' &&
+          rule !== null && // Ensure rule is not null
           rule.test instanceof RegExp &&
           rule.test.source === /^async_hooks$/.source && // Match 'async_hooks' exactly
           Array.isArray(rule.use) &&
-          rule.use.some((u) => typeof u === 'object' && u.loader === 'null-loader')
+          rule.use.some((u) => typeof u === 'object' && u !== null && u.loader === 'null-loader')
       );
       if (!asyncHooksRuleExists) {
         config.module.rules.push({
@@ -75,10 +76,11 @@ const nextConfig = {
       const nodeAsyncHooksRuleExists = config.module.rules.some(
         (rule) =>
           typeof rule === 'object' &&
+          rule !== null && // Ensure rule is not null
           rule.test instanceof RegExp &&
           rule.test.source === /^node:async_hooks$/.source && // Match 'node:async_hooks' exactly
           Array.isArray(rule.use) &&
-          rule.use.some((u) => typeof u === 'object' && u.loader === 'null-loader')
+          rule.use.some((u) => typeof u === 'object' && u !== null && u.loader === 'null-loader')
       );
       if (!nodeAsyncHooksRuleExists) {
         config.module.rules.push({
