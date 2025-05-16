@@ -35,42 +35,50 @@ export default function ImagineExplainerPage() {
 
       const videoJob = explanationResult.videoRenderJob;
       const errorMessage = videoJob?.message || videoJob?.error || "";
-      const isApiVersionError = /invalid api version/i.test(errorMessage.toLowerCase()); // Keep this for generic API errors
+      const isApiVersionError = /invalid api version/i.test(errorMessage.toLowerCase()); 
+      const isApiKeyError = /API_KEY not configured/i.test(errorMessage.toLowerCase()) || /API key not valid/i.test(errorMessage.toLowerCase());
+
 
       if (videoJob && (videoJob.error || videoJob.status === 'failed' || videoJob.status === 'error')) {
+        let toastDescription = `Explanation generated. Hunyuan task has an issue: ${errorMessage || 'Unknown video error'}. Task ID: ${videoJob.taskId || 'N/A'}.`;
+        if (isApiVersionError) {
+            toastDescription += " Please check Hunyuan API documentation for correct API versioning/endpoints.";
+        } else if (isApiKeyError) {
+            toastDescription += " Please ensure your HUNYUAN_API_KEY is correctly set in your environment variables.";
+        }
         toast({
-            title: "Video Generation Task Issue (Minimax)",
-            description: `Explanation generated. Minimax task has an issue: ${errorMessage || 'Unknown video error'}. Task ID: ${videoJob.taskId || 'N/A'}.${isApiVersionError ? " Please check Minimax API documentation for correct API versioning/endpoints." : ""}`,
+            title: "Video Generation Task Issue (Hunyuan)",
+            description: toastDescription,
             variant: "destructive",
             duration: 10000,
         });
-      } else if (videoJob && (videoJob.taskId || videoJob.videoUrl)) { // Check for taskId or direct videoUrl
+      } else if (videoJob && (videoJob.taskId || videoJob.videoUrl)) { 
          toast({
-            title: "Explanation Ready & Video Task Submitted (Minimax)!",
-            description: `The Imagine Explainer worked its magic. Video generation task submitted to Minimax (Task ID: ${videoJob.taskId || 'N/A'}, Status: ${videoJob.status || 'Submitted'}). This may take some time. Check Minimax for progress.`,
+            title: "Explanation Ready & Video Task Submitted (Hunyuan)!",
+            description: `The Imagine Explainer worked its magic. Video generation task submitted to Hunyuan (Task ID: ${videoJob.taskId || 'N/A'}, Status: ${videoJob.status || 'Submitted'}). This may take some time. Check Hunyuan for progress.`,
             duration: 10000,
         });
-      } else if (explanationResult.explanation && !explanationResult.explanation.startsWith("MINIMAX_API_KEY not configured")) {
+      } else if (explanationResult.explanation && !isApiKeyError) {
          toast({
             title: "Explanation Ready!",
-            description: "The Imagine Explainer generated an explanation. Video generation task with Minimax could not be reliably initiated or status is unknown. Check Minimax info below.",
+            description: "The Imagine Explainer generated an explanation. Video generation task with Hunyuan could not be reliably initiated or status is unknown. Check Hunyuan info below.",
             variant: "default",
             duration: 7000,
          });
       } else {
         const errorDetails = videoJob?.error || videoJob?.message || explanationResult.explanation || 'No specific details from video service or explanation generation.';
         toast({
-            title: "Operation Incomplete (Minimax)",
-            description: `Could not generate a full explanation or reliably start video generation with Minimax. Details: ${errorDetails}`,
+            title: "Operation Incomplete (Hunyuan)",
+            description: `Could not generate a full explanation or reliably start video generation with Hunyuan. Details: ${errorDetails}`,
             variant: "destructive",
             duration: 10000,
         });
       }
     } catch (error) {
-      console.error("Imagine Explainer page error (Minimax):", error);
+      console.error("Imagine Explainer page error (Hunyuan):", error);
       toast({
-        title: "Operation Failed (Minimax)",
-        description: (error as Error).message || "An unexpected error occurred while trying to get an explanation or start video creation with Minimax.",
+        title: "Operation Failed (Hunyuan)",
+        description: (error as Error).message || "An unexpected error occurred while trying to get an explanation or start video creation with Hunyuan.",
         variant: "destructive",
       });
     } finally {
@@ -83,18 +91,18 @@ export default function ImagineExplainerPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl flex items-center">
-            <Shapes className="mr-3 h-7 w-7 text-primary" /> Imagine Explainer & Video Creator (via Minimax)
+            <Shapes className="mr-3 h-7 w-7 text-primary" /> Imagine Explainer & Video Creator (via Hunyuan)
           </CardTitle>
           <CardDescription className="space-y-1">
-            Get a simple AI explanation for a complex topic, and initiate a text-to-video generation task using Minimax API!
+            Get a simple AI explanation for a complex topic, and initiate a text-to-video generation task using Hunyuan API!
             <br />
             <span className="text-xs text-muted-foreground">
-                Video generation uses the Minimax API. This page only initiates the task; it doesn't poll for completion. Check Minimax with the Task ID.
+                Video generation uses the Hunyuan API. This page only initiates the task; it doesn't poll for completion. Check Hunyuan with the Task ID.
                 The AI-generated text explanation will be used as the prompt for video generation.
-                <strong className="block mt-1">You MUST consult the official Minimax API documentation for correct endpoints, payload structure (e.g., model IDs), and any required API version headers.</strong>
+                <strong className="block mt-1">You MUST consult the official Hunyuan API documentation for correct endpoints, payload structure (e.g., model IDs), and any required API version headers.</strong>
             </span>
              <span className="text-xs text-destructive/80 block mt-1">
-                <Info className="inline-block h-3 w-3 mr-1" /> Important: Ensure `MINIMAX_API_KEY` is set in your server's environment variables (e.g., `.env.local`) for this feature to work securely and correctly.
+                <Info className="inline-block h-3 w-3 mr-1" /> Important: Ensure `HUNYUAN_API_KEY` is set in your server's environment variables (e.g., `.env.local`) for this feature to work securely and correctly.
             </span>
           </CardDescription>
         </CardHeader>
@@ -124,7 +132,7 @@ export default function ImagineExplainerPage() {
         <Card className="bg-secondary/30">
           <CardHeader>
             <CardTitle className="flex items-center">
-                <Sparkles className="mr-2 h-5 w-5 text-accent" /> AI Explanation & Minimax Video Status
+                <Sparkles className="mr-2 h-5 w-5 text-accent" /> AI Explanation & Hunyuan Video Status
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -138,7 +146,7 @@ export default function ImagineExplainerPage() {
             {result.videoRenderJob && (
               <div>
                 <h3 className="text-lg font-semibold mb-2 flex items-center">
-                    <Film className="mr-2 h-5 w-5 text-primary" /> Video Generation Task (Minimax):
+                    <Film className="mr-2 h-5 w-5 text-primary" /> Video Generation Task (Hunyuan):
                 </h3>
                 {result.videoRenderJob.error || result.videoRenderJob.status === 'failed' || result.videoRenderJob.status === 'error' ? (
                     <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-md">
@@ -148,11 +156,11 @@ export default function ImagineExplainerPage() {
                         <p className="text-sm text-destructive/90"><strong>Task ID:</strong> {result.videoRenderJob.taskId || "N/A"}</p>
                         <p className="text-sm text-destructive/90"><strong>Status:</strong> {result.videoRenderJob.status || "Unknown"}</p>
                         <p className="text-sm text-destructive/90"><strong>Details:</strong> {result.videoRenderJob.message || result.videoRenderJob.error || "An issue occurred with the video generation task."}</p>
-                         { (result.videoRenderJob.error || "").includes("API Key not configured") && 
-                           <p className="text-xs text-destructive mt-2">Please ensure the `MINIMAX_API_KEY` is correctly set in your server's environment variables.</p>
+                         { (result.videoRenderJob.error || result.videoRenderJob.message || "").toLowerCase().includes("api_key not configured") && 
+                           <p className="text-xs text-destructive mt-2">Please ensure the `HUNYUAN_API_KEY` is correctly set in your server's environment variables.</p>
                         }
                         { /invalid api version/i.test((result.videoRenderJob.message || result.videoRenderJob.error || "").toLowerCase()) &&
-                            <p className="text-xs text-destructive mt-1">This error often indicates an API version mismatch or incorrect endpoint. Please consult the official Minimax API documentation for the correct API versioning, endpoint, and payload structure for your desired task.</p>
+                            <p className="text-xs text-destructive mt-1">This error often indicates an API version mismatch or incorrect endpoint. Please consult the official Hunyuan API documentation for the correct API versioning, endpoint, and payload structure for your desired task.</p>
                         }
                     </div>
                 ) : (
@@ -163,25 +171,25 @@ export default function ImagineExplainerPage() {
                              <p className="text-sm"><strong className="font-medium">Video URL (if ready):</strong> <a href={result.videoRenderJob.videoUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">{result.videoRenderJob.videoUrl}</a></p>
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
-                            Note: Video generation is initiated with Minimax and may take some time. This page does not auto-refresh video status. You might need to check your Minimax dashboard or API using the Task ID for progress and the final video.
-                            Consult Minimax documentation for details on specific models, parameters, and how to retrieve final video assets.
+                            Note: Video generation is initiated with Hunyuan and may take some time. This page does not auto-refresh video status. You might need to check your Hunyuan dashboard or API using the Task ID for progress and the final video.
+                            Consult Hunyuan documentation for details on specific models, parameters, and how to retrieve final video assets.
                         </p>
                     </div>
                 )}
               </div>
             )}
-             {!result.videoRenderJob && result.explanation && !result.explanation.startsWith("MINIMAX_API_KEY not configured") && (
+             {!result.videoRenderJob && result.explanation && !result.explanation.toLowerCase().includes("api_key not configured") && (
                 <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-md">
                     <h4 className="font-semibold text-yellow-700 dark:text-yellow-400 flex items-center">
                         <AlertTriangle className="mr-2 h-5 w-5" /> Video Generation Not Started or Failed Early
                     </h4>
-                    <p className="text-sm text-yellow-700/90 dark:text-yellow-500/90">The video generation task with Minimax could not be initiated or an error occurred before receiving details. Please check server logs for more details if the issue persists.</p>
+                    <p className="text-sm text-yellow-700/90 dark:text-yellow-500/90">The video generation task with Hunyuan could not be initiated or an error occurred before receiving details. Please check server logs for more details if the issue persists.</p>
                 </div>
             )}
           </CardContent>
            <CardFooter>
             <p className="text-xs text-muted-foreground">
-              The explanation is AI-generated. Video generation is handled by Minimax.
+              The explanation is AI-generated. Video generation is handled by Hunyuan.
             </p>
           </CardFooter>
         </Card>

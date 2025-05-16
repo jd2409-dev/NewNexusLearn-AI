@@ -4,7 +4,7 @@ console.log("Loading AI Flow: imagine-explainer-flow.ts");
 
 /**
  * @fileOverview Provides simple, imaginative explanations for complex topics
- * and initiates a video generation job using Minimax API.
+ * and initiates a video generation job using Hunyuan API.
  *
  * - imagineExplainer - A function that generates a simple explanation and starts a video generation task.
  * - ImagineExplainerInput - The input type for the imagineExplainer function.
@@ -15,18 +15,22 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
-// Minimax API Configuration
-// IMPORTANT: You MUST verify this endpoint with Minimax's official API documentation.
-const MINIMAX_API_URL = 'https://api.minimax.chat/v1/some_video_endpoint'; // REPLACE WITH ACTUAL MINIMAX ENDPOINT
-let MINIMAX_API_KEY = process.env.MINIMAX_API_KEY;
+// Hunyuan API Configuration
+// IMPORTANT: You MUST verify this endpoint with Hunyuan's official API documentation.
+const HUNYUAN_API_URL = 'https://api.hunyuan.tencent.com/some_video_endpoint'; // REPLACE WITH ACTUAL HUNYUAN VIDEO ENDPOINT
+const HUNYUAN_API_KEY_FALLBACK = "SG_e1cb88f73da1d0bd"; // User provided key
 
-if (!MINIMAX_API_KEY) {
+let HUNYUAN_API_KEY = process.env.HUNYUAN_API_KEY;
+
+if (!HUNYUAN_API_KEY) {
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  console.warn("!!! WARNING: MINIMAX_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
-  console.warn("!!! Video generation will likely fail without a valid API key. !!!");
-  console.warn("!!! Please set MINIMAX_API_KEY for proper and secure operation. !!!");
+  console.warn("!!! WARNING: HUNYUAN_API_KEY environment variable not set in your .env.local file or deployment environment. !!!");
+  console.warn("!!! Using fallback API key for Hunyuan. This is insecure for production. !!!");
+  console.warn("!!! Please set HUNYUAN_API_KEY for proper and secure operation. !!!");
   console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  // No fallback key will be used here. The feature should fail if the key is not set.
+  HUNYUAN_API_KEY = HUNYUAN_API_KEY_FALLBACK;
+} else {
+    console.log("imagineExplainerFlow: Using Hunyuan API Key from environment variable.");
 }
 
 
@@ -40,21 +44,21 @@ const TextExplanationSchema = z.object({
   explanation: z.string().describe('A simple, imaginative explanation of the topic.'),
 });
 
-// Schema for the Minimax API response (task submission)
-// This is a VERY GENERIC schema. You MUST adjust it based on Minimax's actual response.
-const MinimaxJobInfoSchema = z.object({
-  taskId: z.string().optional().describe('The ID of the video generation task submitted to Minimax.'),
+// Schema for the Hunyuan API response (task submission)
+// This is a VERY GENERIC schema. You MUST adjust it based on Hunyuan's actual response.
+const HunyuanJobInfoSchema = z.object({
+  taskId: z.string().optional().describe('The ID of the video generation task submitted to Hunyuan.'),
   status: z.string().optional().describe('The initial status of the video generation task.'),
   videoUrl: z.string().optional().describe('URL to the generated video if available immediately.'),
-  error: z.string().nullable().optional().describe('Captures error messages from Minimax.'),
-  message: z.string().nullable().optional().describe('Additional messages from Minimax.'),
-  // Add any other fields you expect from Minimax's initial task response
-}).passthrough(); // passthrough() allows other fields Minimax might return without schema validation errors.
+  error: z.string().nullable().optional().describe('Captures error messages from Hunyuan.'),
+  message: z.string().nullable().optional().describe('Additional messages from Hunyuan.'),
+  // Add any other fields you expect from Hunyuan's initial task response
+}).passthrough(); // passthrough() allows other fields Hunyuan might return without schema validation errors.
 
 
 const ImagineExplainerOutputSchema = z.object({
   explanation: z.string().describe('The AI-generated simple, imaginative explanation of the topic.'),
-  videoRenderJob: MinimaxJobInfoSchema.nullable().describe('The response from the Minimax API regarding the video generation task, or null if the API call failed before a structured response was received.'),
+  videoRenderJob: HunyuanJobInfoSchema.nullable().describe('The response from the Hunyuan API regarding the video generation task, or null if the API call failed before a structured response was received.'),
 });
 export type ImagineExplainerOutput = z.infer<typeof ImagineExplainerOutputSchema>;
 
@@ -91,17 +95,15 @@ const imagineExplainerFlow = ai.defineFlow(
   },
   async (input) => {
     let aiExplanation = `Video about: ${input.topic}`; // Fallback prompt if AI explanation fails
-    let minimaxResponseData: z.infer<typeof MinimaxJobInfoSchema> | null = null;
+    let hunyuanResponseData: z.infer<typeof HunyuanJobInfoSchema> | null = null;
 
-    if (!MINIMAX_API_KEY) {
-        console.error("imagineExplainerFlow: CRITICAL - MINIMAX_API_KEY is not configured. Video generation will fail.");
+    if (!HUNYUAN_API_KEY) { // Double check after potential fallback logic
+        console.error("imagineExplainerFlow: CRITICAL - Hunyuan API_KEY is not configured. Video generation will fail.");
         return {
-            explanation: "MINIMAX_API_KEY not configured. Please set the MINIMAX_API_KEY environment variable. Cannot generate video explanation.",
-            videoRenderJob: { error: "MINIMAX_API_KEY not configured.", message: "Please set the MINIMAX_API_KEY environment variable." },
+            explanation: "Hunyuan API_KEY not configured. Please set the HUNYUAN_API_KEY environment variable. Cannot generate video explanation.",
+            videoRenderJob: { error: "Hunyuan API_KEY not configured.", message: "Please set the HUNYUAN_API_KEY environment variable." },
         };
     }
-    console.log("imagineExplainerFlow: Using Minimax API Key from environment variable.");
-
 
     try {
       // 1. Generate text explanation using AI
@@ -116,28 +118,28 @@ const imagineExplainerFlow = ai.defineFlow(
         // aiExplanation is already set to fallback
       }
 
-      // 2. Prepare data for Minimax API
-      // IMPORTANT: This is a GENERIC payload. You MUST consult Minimax's API documentation
+      // 2. Prepare data for Hunyuan API
+      // IMPORTANT: This is a GENERIC payload. You MUST consult Hunyuan's API documentation
       // for the specific model and parameters required for text-to-video or desired task.
-      const minimaxPayload = {
-        prompt: aiExplanation, // This is a guess, Minimax might call it 'text_input', 'description', etc.
-        topic: input.topic,     // You might need to send the original topic as well
-        // model: "minimax_video_model_xyz", // Example: You'll likely need to specify a model
-        // duration: 5, // Example: Desired video duration in seconds
+      const hunyuanPayload = {
+        text_prompt: aiExplanation, // This is a guess, Hunyuan might call it 'text_input', 'description', etc.
+        // model_id: "hunyuan_video_model_xyz", // Example: You'll likely need to specify a model
+        // duration_seconds: 10, // Example: Desired video duration in seconds
         // aspect_ratio: "16:9", // Example
-        // ... other Minimax specific parameters
+        // ... other Hunyuan specific parameters
       };
 
-      // 3. Call Minimax API
-      console.log("imagineExplainerFlow: Calling Minimax API at", MINIMAX_API_URL, "with payload:", JSON.stringify(minimaxPayload, null, 2).substring(0, 300) + "..."); // Log truncated payload
-      const response = await fetch(MINIMAX_API_URL, { // Make sure MINIMAX_API_URL is correct
+      // 3. Call Hunyuan API
+      console.log("imagineExplainerFlow: Calling Hunyuan API at", HUNYUAN_API_URL, "with payload:", JSON.stringify(hunyuanPayload, null, 2).substring(0, 300) + "..."); // Log truncated payload
+      const response = await fetch(HUNYUAN_API_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${MINIMAX_API_KEY}`, // Common auth, verify with Minimax
+          'Authorization': `Bearer ${HUNYUAN_API_KEY}`, // Common auth, verify with Hunyuan
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          // Add any other specific headers Hunyuan API requires (e.g., API version)
         },
-        body: JSON.stringify(minimaxPayload)
+        body: JSON.stringify(hunyuanPayload)
       });
 
       let parsedJson;
@@ -145,71 +147,77 @@ const imagineExplainerFlow = ai.defineFlow(
 
       try {
         parsedJson = JSON.parse(responseText);
-        console.log("imagineExplainerFlow: Minimax API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
+        console.log("imagineExplainerFlow: Hunyuan API raw parsed JSON:", JSON.stringify(parsedJson, null, 2));
       } catch (jsonError) {
-        console.error("imagineExplainerFlow: Minimax API Failed to parse JSON response. Status:", response.status, "Text:", responseText, "Error:", jsonError);
+        console.error("imagineExplainerFlow: Hunyuan API Failed to parse JSON response. Status:", response.status, "Text:", responseText, "Error:", jsonError);
         parsedJson = null; 
         if (!response.ok) { 
-            minimaxResponseData = { 
-                error: `HTTP error ${response.status} from Minimax`, 
-                message: `Failed to submit video task to Minimax. Server said: ${response.statusText || responseText}`
+            hunyuanResponseData = { 
+                error: `HTTP error ${response.status} from Hunyuan`, 
+                message: `Failed to submit video task to Hunyuan. Server said: ${response.statusText || responseText}`
             };
         } else { 
-             minimaxResponseData = { 
-                error: "Invalid JSON response from Minimax", 
-                message: `Received a non-JSON response from Minimax despite a success status. Response text: ${responseText}`
+             hunyuanResponseData = { 
+                error: "Invalid JSON response from Hunyuan", 
+                message: `Received a non-JSON response from Hunyuan despite a success status. Response text: ${responseText}`
             };
         }
       }
 
-      if (!minimaxResponseData) { // If not set by JSON parse error block
+      if (!hunyuanResponseData) { // If not set by JSON parse error block
         if (response.ok) {
-          // IMPORTANT: Adapt this based on Minimax's ACTUAL response structure.
+          // IMPORTANT: Adapt this based on Hunyuan's ACTUAL response structure.
           // It might return an object directly, or an array, or nest the job info.
-          if (parsedJson && typeof parsedJson === 'object') {
-            minimaxResponseData = parsedJson as z.infer<typeof MinimaxJobInfoSchema>; // Type assertion
-             // Example: if Minimax returns task_id, map it to our schema's taskId
-             if (parsedJson.task_id && !minimaxResponseData.taskId) minimaxResponseData.taskId = parsedJson.task_id;
-             if (parsedJson.url && !minimaxResponseData.videoUrl) minimaxResponseData.videoUrl = parsedJson.url;
+          if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) { // Assuming single object response
+            hunyuanResponseData = parsedJson as z.infer<typeof HunyuanJobInfoSchema>;
+             // Example: if Hunyuan returns task_id, map it to our schema's taskId
+             if (parsedJson.task_id && !hunyuanResponseData.taskId) hunyuanResponseData.taskId = parsedJson.task_id;
+             // if (parsedJson.video_url && !hunyuanResponseData.videoUrl) hunyuanResponseData.videoUrl = parsedJson.video_url;
+
+          } else if (parsedJson && Array.isArray(parsedJson) && parsedJson.length > 0 && typeof parsedJson[0] === 'object') {
+            // If Hunyuan returns an array of tasks, take the first one
+            console.log("imagineExplainerFlow: Hunyuan API returned an array, taking the first element.");
+            hunyuanResponseData = parsedJson[0] as z.infer<typeof HunyuanJobInfoSchema>;
+            if (parsedJson[0].task_id && !hunyuanResponseData.taskId) hunyuanResponseData.taskId = parsedJson[0].task_id;
 
           } else {
-            console.warn("imagineExplainerFlow: Minimax API successful, but response format was unexpected:", parsedJson);
-            minimaxResponseData = {
-              error: "Unexpected response format from Minimax after success status.",
+            console.warn("imagineExplainerFlow: Hunyuan API successful, but response format was unexpected:", parsedJson);
+            hunyuanResponseData = {
+              error: "Unexpected response format from Hunyuan after success status.",
               message: parsedJson ? `Received: ${JSON.stringify(parsedJson)}` : (response.statusText || "Response was not valid JSON or was empty."),
             };
           }
         } else { // !response.ok (HTTP error)
           if (parsedJson && typeof parsedJson === 'object' && parsedJson !== null) {
-            minimaxResponseData = parsedJson as z.infer<typeof MinimaxJobInfoSchema>;
-            if (!minimaxResponseData.error && !minimaxResponseData.message) {
-              minimaxResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown Minimax Error'}`;
-              minimaxResponseData.message = JSON.stringify(parsedJson);
+            hunyuanResponseData = parsedJson as z.infer<typeof HunyuanJobInfoSchema>;
+            if (!hunyuanResponseData.error && !hunyuanResponseData.message) {
+              hunyuanResponseData.error = `HTTP ${response.status}: ${response.statusText || 'Unknown Hunyuan Error'}`;
+              hunyuanResponseData.message = JSON.stringify(parsedJson);
             }
           } else {
-            minimaxResponseData = {
+            hunyuanResponseData = {
               error: `HTTP error ${response.status}`,
-              message: response.statusText || responseText || "Minimax API request failed with non-JSON response.",
+              message: response.statusText || responseText || "Hunyuan API request failed with non-JSON response.",
             };
           }
         }
       }
-      console.log("imagineExplainerFlow: Processed Minimax API Data (to be returned):", JSON.stringify(minimaxResponseData, null, 2));
+      console.log("imagineExplainerFlow: Processed Hunyuan API Data (to be returned):", JSON.stringify(hunyuanResponseData, null, 2));
 
     } catch (e) { 
       console.error("imagineExplainerFlow: Error during execution:", e);
-      if (!minimaxResponseData) { 
-          minimaxResponseData = { error: "Flow execution error", message: (e as Error).message };
+      if (!hunyuanResponseData) { 
+          hunyuanResponseData = { error: "Flow execution error", message: (e as Error).message };
       } else { 
           const flowErrorMessage = `Flow error: ${(e as Error).message}`;
-          minimaxResponseData.error = minimaxResponseData.error ? `${minimaxResponseData.error}; ${flowErrorMessage}` : flowErrorMessage;
-          if (!minimaxResponseData.message) minimaxResponseData.message = ""; 
+          hunyuanResponseData.error = hunyuanResponseData.error ? `${hunyuanResponseData.error}; ${flowErrorMessage}` : flowErrorMessage;
+          if (!hunyuanResponseData.message) hunyuanResponseData.message = ""; 
       }
     }
     
     return {
       explanation: aiExplanation,
-      videoRenderJob: minimaxResponseData, 
+      videoRenderJob: hunyuanResponseData, 
     };
   }
 );
