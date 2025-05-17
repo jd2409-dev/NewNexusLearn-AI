@@ -5,7 +5,7 @@ import { useState, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, Activity, Loader2, Gem, Target as LevelIcon, Award as XPIcon, Star } from "lucide-react";
+import { BookOpenText, ClipboardCheck, Lightbulb, Zap, BarChart3, UploadCloud, Brain, Activity, Loader2 } from "lucide-react"; // Removed Gem, Target, Award, Star
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,7 +35,7 @@ function OriginalDashboardCard({ title, description, icon, href, actionText, dis
       </CardContent>
       <CardFooter>
         <Link href={href} className="w-full" aria-disabled={disabled} tabIndex={disabled ? -1 : undefined}>
-          <Button variant="secondary" className="w-full transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 touch-manipulation" disabled={disabled}>{actionText}</Button>
+          <Button variant="secondary" className="w-full transition-all duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98] touch-manipulation active:brightness-95" disabled={disabled}>{actionText}</Button>
         </Link>
       </CardFooter>
     </Card>
@@ -43,28 +43,7 @@ function OriginalDashboardCard({ title, description, icon, href, actionText, dis
 }
 const MemoizedDashboardCard = memo(OriginalDashboardCard);
 
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-}
-
-function OriginalStatCard({ title, value, icon }: StatCardProps) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
-const MemoizedStatCard = memo(OriginalStatCard);
-
+// StatCard related components and usage removed as gamification is excluded.
 
 export default function DashboardPage() {
   const { user, userProfile, loading, refreshUserProfile } = useAuth();
@@ -72,10 +51,6 @@ export default function DashboardPage() {
   const [showTour, setShowTour] = useState(false);
 
   const studySubjects = userProfile?.studyData?.subjects || [];
-  const userXp = userProfile?.studyData?.xp || 0;
-  const userLevel = userProfile?.studyData?.level || 1;
-  const userCoins = userProfile?.studyData?.coins || 0;
-  const currentStreak = userProfile?.studyData?.currentStreak || 0;
 
   useEffect(() => {
     if (userProfile && userProfile.studyData?.hasCompletedOnboardingTour === false && !loading) {
@@ -87,7 +62,7 @@ export default function DashboardPage() {
     if (user) {
       try {
         await markOnboardingTourAsCompleted(user.uid);
-        await refreshUserProfile(); 
+        await refreshUserProfile();
         setShowTour(false);
       } catch (error) {
         console.error("Error updating onboarding tour status:", error);
@@ -96,7 +71,7 @@ export default function DashboardPage() {
           description: "Could not save tour completion status. It might show again.",
           variant: "destructive",
         });
-         setShowTour(false); 
+         setShowTour(false);
       }
     }
   };
@@ -114,7 +89,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <OnboardingTour
         isOpen={showTour}
-        onClose={handleTourAction} 
+        onClose={handleTourAction}
         onComplete={handleTourAction}
       />
       <section className="bg-card p-6 md:p-8 rounded-lg shadow-lg">
@@ -128,39 +103,31 @@ export default function DashboardPage() {
             </p>
             <div className="mt-6 flex flex-col sm:flex-row gap-3 md:gap-4">
               <Link href="/learning-paths">
-                <Button size="lg" className="w-full sm:w-auto transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
+                <Button size="lg" className="w-full sm:w-auto transition-all duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98] touch-manipulation active:brightness-95">
                   <BookOpenText className="mr-2 h-5 w-5" /> Create Learning Path
                 </Button>
               </Link>
               <Link href="/quizzes">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto transition-all duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98] touch-manipulation active:brightness-95">
                   <Lightbulb className="mr-2 h-5 w-5" /> Start a Quiz
                 </Button>
               </Link>
             </div>
           </div>
           <div className="md:w-1/3 flex justify-center mt-6 md:mt-0">
-            <Image 
-              src="https://images.unsplash.com/photo-1533162507191-d90c625b2640?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxOHx8Y2FsbXxlbnwwfHx8fDE3NDcyMzQ0NzB8MA&ixlib=rb-4.1.0&q=80&w=1080" 
+            <Image
+              src="https://images.unsplash.com/photo-1533162507191-d90c625b2640?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxOHx8Y2FsbXxlbnwwfHx8fDE3NDcyMzQ0NzB8MA&ixlib=rb-4.1.0&q=80&w=1080"
               alt="AI Learning Illustration"
-              data-ai-hint="AI learning" 
-              width={200} 
-              height={200} 
+              data-ai-hint="AI learning"
+              width={200}
+              height={200}
               className="rounded-full shadow-2xl object-cover"
             />
           </div>
         </div>
       </section>
 
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">Your Gamified Stats</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MemoizedStatCard title="XP Points" value={userXp.toLocaleString()} icon={<XPIcon className="text-accent" />} />
-          <MemoizedStatCard title="Level" value={userLevel.toString()} icon={<LevelIcon className="text-accent" />} />
-          <MemoizedStatCard title="Coins" value={userCoins.toLocaleString()} icon={<Gem className="text-accent" />} />
-          <MemoizedStatCard title="Daily Streak" value={`${currentStreak} Day${currentStreak === 1 ? '' : 's'}`} icon={<Zap className="text-accent" />} />
-        </div>
-      </section>
+      {/* Gamified Stats Section Removed */}
 
       <section>
         <h2 className="text-2xl font-semibold mb-4">Quick Access</h2>
@@ -215,17 +182,13 @@ export default function DashboardPage() {
             <div className="leading-none text-muted-foreground">
               Showing overall syllabus coverage based on your activity.
             </div>
-             <div className="w-full mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+             <div className="w-full mt-4 grid grid-cols-1 sm:grid-cols-1 gap-3"> {/* Changed to 1 column for single button */}
                  <Link href="/analytics" className="w-full">
-                    <Button variant="outline" className="w-full transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
+                    <Button variant="outline" className="w-full transition-all duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98] touch-manipulation active:brightness-95">
                         <BarChart3 className="mr-2 h-4 w-4" /> Detailed Analytics
                     </Button>
                  </Link>
-                 <Link href="/achievements" className="w-full">
-                    <Button variant="outline" className="w-full transition-all duration-150 ease-in-out hover:scale-[1.03] active:scale-[0.98] touch-manipulation">
-                        <Star className="mr-2 h-4 w-4" /> View Achievements
-                    </Button>
-                 </Link>
+                 {/* Achievements button removed */}
              </div>
           </CardFooter>
         </Card>

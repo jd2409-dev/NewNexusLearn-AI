@@ -26,16 +26,12 @@ import {
   Lightbulb,
   MessageSquareHeart,
   BarChart3,
-  Settings,
-  LifeBuoy,
   ChevronDown,
   ChevronUp,
   LogOut,
-  User,
-  Edit3, 
-  FileClock, 
-  Trophy,
-  // Shapes icon removed as Imagine Explainer is deleted
+  Edit3,
+  FileClock,
+  // Trophy icon removed as Achievements page is deleted
 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,9 +44,8 @@ const navItems = [
   { href: "/quizzes", icon: Lightbulb, label: "Quizzes" },
   { href: "/ai-coach", icon: MessageSquareHeart, label: "AI Coach" },
   { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" },
-  // Removed: { href: "/imagine-explainer", icon: Shapes, label: "Imagine Explainer" },
   { href: "/reflection", icon: FileClock, label: "Reflection" },
-  { href: "/achievements", icon: Trophy, label: "Achievements" },
+  // Achievements link removed
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
@@ -71,7 +66,7 @@ export function AppSidebar() {
     closeMobileSidebar();
     await signOut();
   };
-  
+
   const getInitials = (email?: string | null) => {
     if (!email) return "NL";
     const namePart = email.split("@")[0];
@@ -87,7 +82,7 @@ export function AppSidebar() {
     return namePart.substring(0, 2).toUpperCase();
   };
 
-  if (!user) { 
+  if (!user) {
     return null;
   }
 

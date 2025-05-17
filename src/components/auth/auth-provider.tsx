@@ -5,7 +5,7 @@ import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import type { FirebaseError } from 'firebase/app';
 import { createContext, useEffect, useState, type ReactNode, useCallback } from 'react';
-import { auth as firebaseAuthInstance, db, firebaseConfig } from '@/firebase'; // Renamed to avoid conflict, Added firebaseConfig import
+import { auth as firebaseAuthInstance, db, firebaseConfig } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { createUserProfileDocument, getUserProfile, type UserProfile, updateUserLoginStreak, ensureFreePlan, markOnboardingTourAsCompleted } from '@/lib/user-service';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -38,7 +38,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [isFirebaseConfigured, setIsFirebaseConfigured] = useState(() => {
-    // Use the imported firebaseConfig for this check
     const configured = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
     if (!configured && typeof window !== 'undefined') {
         console.error(
@@ -53,46 +52,65 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
    const fetchUserProfileData = useCallback(async (currentUser: User | null, isNewUser: boolean = false) => {
     if (currentUser) {
-      let profile = await getUserProfile(currentUser.uid);
-      if (!profile || isNewUser) {
-        await createUserProfileDocument(currentUser);
-        profile = await getUserProfile(currentUser.uid);
-      } else {
-        let profileUpdates: any = {};
-        let needsProfileUpdate = false;
+      try {
+        let profile = await getUserProfile(currentUser.uid);
+        if (!profile || isNewUser) {
+          await createUserProfileDocument(currentUser); // This will set up non-gamified defaults
+          profile = await getUserProfile(currentUser.uid);
+        } else {
+          // Check if existing profile needs default non-gamified fields
+          let profileUpdates: any = {};
+          let needsProfileUpdate = false;
 
-        if (profile.plan === null || profile.plan === undefined) {
-          await ensureFreePlan(currentUser.uid);
-          profileUpdates.plan = "free";
-          profileUpdates.planSelectedAt = serverTimestamp();
-          needsProfileUpdate = true;
-        }
-        if (!profile.studyData) {
-            const initialWeeklyHours: any[] = [
-                { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
-                { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
-            ];
-            profileUpdates.studyData = {
-                overallProgress: 0, subjects: [], weeklyStudyHours: initialWeeklyHours,
-                lastActivityDate: serverTimestamp(), pastQuizzes: [], xp: 0, level: 1, coins: 0,
-                achievements: [], currentStreak: 1, lastLoginDate: serverTimestamp(),
-                hasCompletedOnboardingTour: false,
-            };
+          if (profile.plan === null || profile.plan === undefined) {
+            await ensureFreePlan(currentUser.uid); // ensureFreePlan only sets plan if null
+            profileUpdates.plan = "free";
+            profileUpdates.planSelectedAt = serverTimestamp();
             needsProfileUpdate = true;
-        } else if (profile.studyData.hasCompletedOnboardingTour === undefined) {
-            profileUpdates['studyData.hasCompletedOnboardingTour'] = false;
-            needsProfileUpdate = true;
-        }
+          }
+          if (!profile.studyData) {
+              const initialWeeklyHours: any[] = [
+                  { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 }, { day: "Wed", hours: 0 },
+                  { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }, { day: "Sun", hours: 0 },
+              ];
+              profileUpdates.studyData = {
+                  overallProgress: 0, subjects: [], weeklyStudyHours: initialWeeklyHours,
+                  lastActivityDate: serverTimestamp(), pastQuizzes: [],
+                  lastLoginDate: serverTimestamp(),
+                  hasCompletedOnboardingTour: false,
+              };
+              needsProfileUpdate = true;
+          } else if (profile.studyData.hasCompletedOnboardingTour === undefined) {
+              profileUpdates['studyData.hasCompletedOnboardingTour'] = false;
+              needsProfileUpdate = true;
+          }
+          // Remove any lingering gamification fields if they exist on fetched profile
+          const { xp, level, coins, achievements, currentStreak, ...restOfStudyData } = profile.studyData || {} as any;
+          if (xp !== undefined || level !== undefined || coins !== undefined || achievements !== undefined || currentStreak !== undefined) {
+              profileUpdates.studyData = { ...restOfStudyData, ...profileUpdates.studyData }; // merge with any other updates
+              needsProfileUpdate = true;
+          }
 
-        if (needsProfileUpdate) {
-            if (profileUpdates.plan) profile.plan = profileUpdates.plan;
-            if (profileUpdates.studyData) profile.studyData = { ...profile.studyData, ...profileUpdates.studyData};
-            if (profileUpdates['studyData.hasCompletedOnboardingTour'] !== undefined && profile.studyData) {
-                 profile.studyData.hasCompletedOnboardingTour = profileUpdates['studyData.hasCompletedOnboardingTour'];
-            }
+
+          if (needsProfileUpdate) {
+              // Apply local updates first for immediate UI consistency if possible
+              if (profileUpdates.plan) profile.plan = profileUpdates.plan;
+              if (profileUpdates.studyData && profile.studyData) {
+                   profile.studyData = { ...profile.studyData, ...profileUpdates.studyData};
+              } else if (profileUpdates.studyData) {
+                  profile.studyData = profileUpdates.studyData;
+              }
+              if (profileUpdates['studyData.hasCompletedOnboardingTour'] !== undefined && profile.studyData) {
+                   profile.studyData.hasCompletedOnboardingTour = profileUpdates['studyData.hasCompletedOnboardingTour'];
+              }
+          }
         }
+        setUserProfile(profile);
+      } catch (e) {
+        console.error("Error in fetchUserProfileData:", e);
+        setError("Failed to fetch or create user profile.");
+        setUserProfile(null);
       }
-      setUserProfile(profile);
     } else {
       setUserProfile(null);
     }
@@ -104,11 +122,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const errorMsg = "Firebase is not configured. Please ensure API keys are correctly set in src/firebase.ts.";
         setError(errorMsg);
         setLoading(false);
-        return; // Stop further execution if Firebase is not configured
+        return;
     }
 
     if (!firebaseAuthInstance) {
-        if (isFirebaseConfigured) { // Only error if it was supposed to be configured
+        if (isFirebaseConfigured) {
             setError("Firebase Auth instance is not available. Check Firebase initialization in src/firebase.ts.");
         }
         setLoading(false);
@@ -118,7 +136,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     let profileUnsubscribeGlobal: (() => void) | undefined = undefined;
 
     const authUnsubscribe = onAuthStateChanged(firebaseAuthInstance, async (currentUser) => {
-      if (profileUnsubscribeGlobal) { // Clean up previous profile listener if any
+      if (profileUnsubscribeGlobal) {
         profileUnsubscribeGlobal();
         profileUnsubscribeGlobal = undefined;
       }
@@ -126,7 +144,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(currentUser);
       if (currentUser) {
         try {
-          await updateUserLoginStreak(currentUser.uid);
+          await updateUserLoginStreak(currentUser.uid); // This now only updates lastLoginDate
 
           const profileRef = doc(db, "userProfiles", currentUser.uid);
           profileUnsubscribeGlobal = onSnapshot(profileRef, async (docSnap) => {
@@ -138,7 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               if (profileData.plan === null || profileData.plan === undefined) {
                   updatesForDB.plan = "free";
                   updatesForDB.planSelectedAt = serverTimestamp();
-                  profileData.plan = "free";
+                  profileData.plan = "free"; // Optimistic update
                   needsDBUpdate = true;
               }
               if (!profileData.studyData) {
@@ -148,46 +166,55 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   ];
                    updatesForDB.studyData = {
                       overallProgress: 0, subjects: [], weeklyStudyHours: initialWeeklyHours,
-                      lastActivityDate: serverTimestamp(), pastQuizzes: [], xp: 0, level: 1, coins: 0,
-                      achievements: [], currentStreak: 1, lastLoginDate: serverTimestamp(),
+                      lastActivityDate: serverTimestamp(), pastQuizzes: [],
+                      lastLoginDate: serverTimestamp(),
                       hasCompletedOnboardingTour: false,
                   };
-                  profileData.studyData = updatesForDB.studyData;
+                  profileData.studyData = updatesForDB.studyData; // Optimistic update
                   needsDBUpdate = true;
-              } else if (profileData.studyData.hasCompletedOnboardingTour === undefined) {
-                  updatesForDB['studyData.hasCompletedOnboardingTour'] = false;
-                  if(profileData.studyData) profileData.studyData.hasCompletedOnboardingTour = false;
+              } else {
+                if (profileData.studyData.hasCompletedOnboardingTour === undefined) {
+                    updatesForDB['studyData.hasCompletedOnboardingTour'] = false;
+                    if(profileData.studyData) profileData.studyData.hasCompletedOnboardingTour = false; // Optimistic
+                    needsDBUpdate = true;
+                }
+                // Ensure no gamification fields are present in the snapshot either
+                const { xp, level, coins, achievements, currentStreak, ...restOfStudyData } = profileData.studyData as any;
+                if (xp !== undefined || level !== undefined || coins !== undefined || achievements !== undefined || currentStreak !== undefined) {
+                  updatesForDB['studyData'] = restOfStudyData; // Will be merged with other studyData updates if any
+                  profileData.studyData = { ...restOfStudyData, ...updatesForDB['studyData'] }; // Optimistic
                   needsDBUpdate = true;
+                }
               }
+
 
               if (needsDBUpdate) {
                   try {
                     await updateDoc(profileRef, updatesForDB);
                   } catch (updateError) {
-                    console.error("Error applying default updates to profile:", updateError);
-                    // Decide if this error should block loading or set an authError
+                    console.error("Error applying default updates to profile (gamification removed):", updateError);
                   }
               }
               setUserProfile(profileData);
             } else {
-              await createUserProfileDocument(currentUser); // This creates the profile with defaults
-              const newProfile = await getUserProfile(currentUser.uid); // Fetch the newly created profile
+              await createUserProfileDocument(currentUser);
+              const newProfile = await getUserProfile(currentUser.uid);
               setUserProfile(newProfile);
             }
-            setLoading(false); // Profile processing done
+            setLoading(false);
           }, (snapshotError) => {
             console.error("Error listening to user profile:", snapshotError);
             setError("Could not load user profile in real-time. Please try refreshing.");
             setUserProfile(null);
             setLoading(false);
           });
-        } catch (e) { // Catch errors from updateUserLoginStreak or initial setup for onSnapshot
-          console.error("Error during user session initialization (streak/profile listener setup):", e);
+        } catch (e) {
+          console.error("Error during user session initialization:", e);
           setError("Failed to initialize your session. Please try logging in again.");
           setUserProfile(null);
           setLoading(false);
         }
-      } else { // No currentUser
+      } else {
         setUserProfile(null);
         setLoading(false);
       }
@@ -199,7 +226,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         profileUnsubscribeGlobal();
       }
     };
-  }, [isFirebaseConfigured, fetchUserProfileData]); // error removed from deps to prevent loop if error is set
+  }, [isFirebaseConfigured, fetchUserProfileData]);
 
 
   const clearError = () => setError(null);
@@ -236,7 +263,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance, email, pass);
-      // onAuthStateChanged and the Firestore listener will handle setting user and profile
       return userCredential.user;
     } catch (e) {
       const firebaseError = e as FirebaseError;
@@ -250,10 +276,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         friendlyMessage = 'Firebase configuration error. Please contact support.';
       }
       setError(friendlyMessage);
-      setLoading(false); // Ensure loading is false on error
+      setLoading(false);
       return null;
     }
-    // setLoading(false) will be handled by onAuthStateChanged listener typically
   };
 
   const signUp = async (email: string, pass: string): Promise<User | null> => {
@@ -262,11 +287,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance, email, pass);
-      // createUserProfileDocument is now called within onAuthStateChanged if profile doesn't exist,
-      // or if it's a new user through fetchUserProfileData's logic.
-      // The onAuthStateChanged listener will pick up the new user.
-      // Forcing a profile fetch here might be redundant but ensures quicker availability for redirects.
-      await fetchUserProfileData(userCredential.user, true);
+      await fetchUserProfileData(userCredential.user, true); // Ensures profile is created with non-gamified defaults
       return userCredential.user;
     } catch (e) {
       const firebaseError = e as FirebaseError;
@@ -280,10 +301,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
          friendlyMessage = 'Firebase configuration error. Please contact support.';
       }
       setError(friendlyMessage);
-      setLoading(false); // Ensure loading is false on error
+      setLoading(false);
       return null;
     }
-    // setLoading(false) will be handled by onAuthStateChanged listener
   };
 
   const signOut = async () => {
@@ -292,9 +312,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null);
     try {
       await firebaseSignOut(firebaseAuthInstance);
-      setUser(null); // Explicitly set user to null
-      setUserProfile(null); // Explicitly set profile to null
-      // Router push is handled by layouts/pages based on user state
+      setUser(null);
+      setUserProfile(null);
     } catch (e) {
       const firebaseError = e as FirebaseError;
       console.error("Sign out error:", firebaseError);
