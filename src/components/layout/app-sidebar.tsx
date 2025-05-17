@@ -35,7 +35,7 @@ import {
   Edit3, 
   FileClock, 
   Trophy,
-  Shapes, // Added Shapes icon
+  // Shapes icon removed as Imagine Explainer is deleted
 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,7 +48,7 @@ const navItems = [
   { href: "/quizzes", icon: Lightbulb, label: "Quizzes" },
   { href: "/ai-coach", icon: MessageSquareHeart, label: "AI Coach" },
   { href: "/writing-assistant", icon: Edit3, label: "Writing Assistant" },
-  { href: "/imagine-explainer", icon: Shapes, label: "Imagine Explainer" }, // New item
+  // Removed: { href: "/imagine-explainer", icon: Shapes, label: "Imagine Explainer" },
   { href: "/reflection", icon: FileClock, label: "Reflection" },
   { href: "/achievements", icon: Trophy, label: "Achievements" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
@@ -108,6 +108,7 @@ export function AppSidebar() {
                   isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                   onClick={closeMobileSidebar}
                   tooltip={item.label}
+                  className="transition-all duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98] touch-manipulation active:brightness-95"
                 >
                   <item.icon className="h-5 w-5" />
                   <span>{item.label}</span>
@@ -120,7 +121,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-2 border-t border-sidebar-border">
           <SidebarMenu>
               <SidebarMenuItem>
-                  <SidebarMenuButton onClick={() => setIsAccountOpen(!isAccountOpen)} className="justify-between">
+                  <SidebarMenuButton onClick={() => setIsAccountOpen(!isAccountOpen)} className="justify-between transition-all duration-100 ease-in-out hover:scale-[1.02] active:scale-[0.98] touch-manipulation active:brightness-95">
                       <div className="flex items-center gap-2">
                           <Avatar className="h-7 w-7">
                               <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} alt="User avatar" data-ai-hint="user avatar"/>
@@ -134,7 +135,7 @@ export function AppSidebar() {
               {isAccountOpen && (
                    <SidebarMenuSub>
                       <SidebarMenuSubItem>
-                        <SidebarMenuSubButton onClick={handleLogout} disabled={authLoading} className="transition-all duration-150 ease-in-out hover:scale-[1.01] active:scale-[0.98] touch-manipulation active:brightness-95">
+                        <SidebarMenuSubButton onClick={handleLogout} disabled={authLoading} className="transition-all duration-100 ease-in-out hover:scale-[1.01] active:scale-[0.98] touch-manipulation active:brightness-95">
                             <LogOut className="h-4 w-4" /> Log Out
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

@@ -9,4 +9,4 @@ import '@/ai/flows/provide-ai-study-coaching.ts';
 import '@/ai/flows/analyze-textbook-data.ts';
 import '@/ai/flows/provide-writing-assistance.ts';
 import '@/ai/flows/generate-quiz-reflection.ts';
-import '@/ai/flows/imagine-explainer-flow.ts'; // Added new flow
+// Removed: import '@/ai/flows/imagine-explainer-flow.ts';
